@@ -153,22 +153,22 @@ def test_resultado_vem_por_classificacao_e_depois_por_similaridade() -> None:
 
 
 def test_resultado_informa_o_modelo_que_avaliou_os_trechos() -> None:
-    decisao = InMemoryDecisionModel(modelo="jev-1.13.0")
+    decisao = InMemoryDecisionModel(modelo="claude-opus-5-5")
 
     resultado = busca([make_trecho("a.md#s")], decisao).buscar(PERGUNTA)
 
-    assert resultado.modelo == "jev-1.13.0"
-    assert resultado.trechos[0].avaliacao.modelo == "jev-1.13.0"
+    assert resultado.modelo == "claude-opus-5-5"
+    assert resultado.trechos[0].avaliacao.modelo == "claude-opus-5-5"
 
 
-def test_jev_indisponivel_propaga_sem_resultado_parcial() -> None:
+def test_claude_indisponivel_propaga_sem_resultado_parcial() -> None:
     decisao = InMemoryDecisionModel(falhar_trechos=True)
 
     with pytest.raises(DecisaoIndisponivel):
         busca([make_trecho("a.md#s")], decisao).buscar(PERGUNTA)
 
 
-def test_corpus_vazio_devolve_listas_vazias_sem_chamar_o_jev() -> None:
+def test_corpus_vazio_devolve_listas_vazias_sem_chamar_o_claude() -> None:
     resultado = busca([], InMemoryDecisionModel(falhar_trechos=True)).buscar(PERGUNTA)
 
     assert resultado.pergunta == PERGUNTA
@@ -282,7 +282,7 @@ def test_sem_par_elegivel_nao_pergunta_sobre_conflito() -> None:
     assert busca(trechos, decisao).buscar(PERGUNTA).conflitos == []
 
 
-def test_jev_indisponivel_no_conflito_propaga_sem_resultado_parcial() -> None:
+def test_claude_indisponivel_no_conflito_propaga_sem_resultado_parcial() -> None:
     trechos = [
         make_trecho("contrato.md#prazos", "lead time da Katrina"),
         make_trecho("revisao.md#katrina", "lead time da Katrina em dias"),

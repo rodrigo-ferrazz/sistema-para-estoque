@@ -1,7 +1,7 @@
 """Smoke do painel do comprador contra o Postgres real, com os cenários do seed: aviso da
 equipe de vendas e decisão de compra, ruptura com notificação, queda de venda com
 verificação e estoque divergente, e entrega atrasada com cobrança. O painel não chama o
-Jev. No fim, as fixtures apagam só o que o smoke gravou e devolvem os episódios de antes.
+Claude. No fim, as fixtures apagam só o que o smoke gravou e devolvem os episódios de antes.
 """
 from __future__ import annotations
 

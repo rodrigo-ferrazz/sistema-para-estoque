@@ -122,7 +122,7 @@ class SinalCorpusResponse(BaseModel):
 
 
 class SugestaoComSinaisResponse(BaseModel):
-    """`sinais` nulo quando não foram calculados (Jev fora do ar)."""
+    """`sinais` nulo quando não foram calculados (Claude fora do ar)."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -131,7 +131,7 @@ class SugestaoComSinaisResponse(BaseModel):
 
 
 class SinaisDoSKUResponse(BaseModel):
-    """`sinais` nulo quando não foram calculados (Jev fora do ar)."""
+    """`sinais` nulo quando não foram calculados (Claude fora do ar)."""
 
     model_config = ConfigDict(frozen=True)
 

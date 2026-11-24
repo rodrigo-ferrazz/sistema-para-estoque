@@ -1,4 +1,4 @@
-"""Port do redator (o LLM, pela ADR-0002): recebe a pergunta e o contexto já
+"""Port do redator (o LLM, pela ADR-0008): recebe a pergunta e o contexto já
 montado pelo código e só escreve a resposta. Não decide nem calcula nada."""
 from __future__ import annotations
 

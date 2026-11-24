@@ -3,7 +3,7 @@ vendas e as decisões de compra (ADR-0005).
 
 O painel é calculado na hora, sem estado próprio, a partir do retrato do estoque inteiro
 (as fichas de todos os SKUs ativos, lidas em lote), da sugestão de pedido de cada um com a
-política ativa, dos avisos abertos e da decisão vigente. Não chama o Jev: os sinais do
+política ativa, dos avisos abertos e da decisão vigente. Não chama o Claude: os sinais do
 corpus ficam na tela do SKU.
 
 Aviso aberto é o que não tem decisão de compra do mesmo SKU registrada depois dele.

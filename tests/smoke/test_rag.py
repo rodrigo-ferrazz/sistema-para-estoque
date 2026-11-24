@@ -1,6 +1,6 @@
 """Smoke do RAG: ingestão do `corpus/` e `/rag/busca` contra o Postgres real.
 
-A busca chama o Jev de verdade e é pulada sem `JEV_KEY`.
+A busca chama o Claude de verdade e é pulada sem `ANTHROPIC_API_KEY`.
 """
 from __future__ import annotations
 

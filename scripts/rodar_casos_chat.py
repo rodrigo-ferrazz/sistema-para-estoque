@@ -1,6 +1,6 @@
 """Rodada dos casos de `evals/casos.json` pelo chat inteiro (M5, ticket 05).
 
-Monta o `Copilot` pelo mesmo `get_copilot` do `POST /chat` (Jev real, redator
+Monta o `Copilot` pelo mesmo `get_copilot` do `POST /chat` (Claude real, redator
 configurado no `.env`, ERP, política e corpus do Postgres) e responde as
 perguntas dos casos. Cada
 resposta grava um registro de decisão em `copilot.registros_decisao`, como no
@@ -13,7 +13,7 @@ As contagens medem o que o redator faz sem precisar ler a resposta (M8, ticket 0
 colchetes em que nenhuma parte é id de trecho, sinais do corpus com algum trecho de
 origem citado e sugestões com a quantidade escrita como no contexto (`1.234`).
 
-    uv run python -m scripts.rodar_casos_chat               # precisa de JEV_KEY, do seed e do corpus ingerido
+    uv run python -m scripts.rodar_casos_chat               # precisa de ANTHROPIC_API_KEY, do seed e do corpus ingerido
     uv run python -m scripts.rodar_casos_chat --casos evals/casos_redator.json
     uv run python -m scripts.rodar_casos_chat --respostas   # imprime também o texto de cada resposta
     uv run python -m scripts.rodar_casos_chat --pausa 30    # espera entre os casos (limite de requisições do provedor)
@@ -153,8 +153,8 @@ def main() -> None:
     parser.add_argument("--sem-llm", action="store_true", help="troca o redator pelo RedatorSemLLM")
     args = parser.parse_args()
 
-    if not get_settings().jev_key:
-        raise SystemExit("JEV_KEY vazio no .env")
+    if not get_settings().anthropic_api_key:
+        raise SystemExit("ANTHROPIC_API_KEY vazio no .env")
     casos = json.loads(args.casos.read_text(encoding="utf-8"))
     redator = RedatorComQuedas(RedatorSemLLM() if args.sem_llm else get_redator())
     copilot = resolver(get_copilot, {get_redator: lambda: redator})

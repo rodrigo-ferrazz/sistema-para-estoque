@@ -145,7 +145,7 @@ def test_sinais_por_tipo_e_sugestoes_com_sinais_nulos() -> None:
     assert sugestoes_sem_sinais(REGISTROS) == (1, 3)
 
 
-def test_exportar_traz_as_perguntas_novas_sem_a_resposta_do_jev() -> None:
+def test_exportar_traz_as_perguntas_novas_sem_a_resposta_do_claude() -> None:
     exportadas = perguntas_para_exportar(REGISTROS, ["Vai chover amanhã?", "QUAL o lead time de verdade da Katrina?"])
 
     assert exportadas == [

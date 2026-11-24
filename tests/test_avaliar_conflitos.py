@@ -47,7 +47,7 @@ TRECHOS = {id: make_trecho(id, f"Texto de {id}.") for p in PARES for id in (p["t
 
 
 def resultado(probabilidades: dict = PROBABILIDADES) -> dict:
-    decisao = InMemoryDecisionModel(conflitos=probabilidades, modelo="jev-1.13.0")
+    decisao = InMemoryDecisionModel(conflitos=probabilidades, modelo="claude-opus-5-5")
     return {"respostas": rodar(decisao, PARES, TRECHOS)}
 
 
@@ -55,7 +55,7 @@ def busca(caso: str, *pares: tuple[str, str, float]) -> dict:
     return {
         "caso": caso,
         "pergunta": f"Pergunta {caso}",
-        "pares": [{"trecho_a": a, "trecho_b": b, "conflitam": p, "modelo": "jev-1.13.0"} for a, b, p in pares],
+        "pares": [{"trecho_a": a, "trecho_b": b, "conflitam": p, "modelo": "claude-opus-5-5"} for a, b, p in pares],
     }
 
 
@@ -75,7 +75,7 @@ def test_juntar_grava_todo_par_avaliado_nas_buscas_das_perguntas_que_vao_ao_corp
     decisao = InMemoryDecisionModel(
         padrao={"relevante": 0.9, "tem_evidencia": 0.9},
         conflitos={("contrato.md#prazos", "revisao.md#katrina"): 0.04},
-        modelo="jev-1.13.0",
+        modelo="claude-opus-5-5",
     )
     casos = [
         {"id": "c01", "pergunta": "estoque da toalha", "intencao": "situacao_sku"},
@@ -89,7 +89,7 @@ def test_juntar_grava_todo_par_avaliado_nas_buscas_das_perguntas_que_vao_ao_corp
     assert [b["caso"] for b in buscas] == ["c09", "c11"]
     assert buscas[0]["pergunta"] == "lead time da Katrina"
     assert buscas[0]["pares"] == [
-        {"trecho_a": "contrato.md#prazos", "trecho_b": "revisao.md#katrina", "conflitam": 0.04, "modelo": "jev-1.13.0"}
+        {"trecho_a": "contrato.md#prazos", "trecho_b": "revisao.md#katrina", "conflitam": 0.04, "modelo": "claude-opus-5-5"}
     ]
 
 
@@ -172,7 +172,7 @@ def test_relatorio_mostra_limiar_regra_folga_e_os_conflitos_por_busca() -> None:
     texto = relatorio(resultado(), PARES, BUSCAS)
     atual = f"{LIMIARES_BUSCA.conflito:.2f}"
 
-    assert "Modelo: jev-1.13.0" in texto
+    assert "Modelo: claude-opus-5-5" in texto
     assert "## Pares (3 com conflito e 3 sem)" in texto
     assert "0.62  conflitam sim  contrato.md#prazos x revisao.md#katrina" in texto
     assert f"Regra de calibração: 0.20 (ponto_medio, folga 0.08 abaixo e 0.10 acima; separável entre 0.12 e 0.30; atual {atual})" in texto

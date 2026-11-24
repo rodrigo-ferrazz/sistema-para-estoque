@@ -14,11 +14,11 @@ class Settings(BaseSettings):
     )
     # Fora do local, o cookie de sessão sai com `Secure` (só HTTPS).
     ambiente: Literal["local", "producao"] = Field(default="local", alias="AMBIENTE")
-    jev_key: str | None = Field(default=None, alias="JEV_KEY")
-    jev_model: str = Field(default="jev-1.13.0", alias="JEV_MODEL")
     redator: Literal["auto", "anthropic", "sem_llm"] = Field(default="auto", alias="REDATOR")
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-sonnet-5-5", alias="ANTHROPIC_MODEL")
+    # Modelo das decisões tipadas (intenção, relevância, sinais, citações), ADR-0008.
+    anthropic_decision_model: str = Field(default="claude-opus-5-5", alias="ANTHROPIC_DECISION_MODEL")
     embedding_model: str = Field(
         default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         alias="EMBEDDING_MODEL",

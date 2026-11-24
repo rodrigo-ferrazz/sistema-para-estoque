@@ -1,4 +1,4 @@
-"""Smoke dos sinais do corpus contra o Postgres real, com o Jev de verdade. O chat
+"""Smoke dos sinais do corpus contra o Postgres real, com o Claude de verdade. O chat
 troca o redator pelo `RedatorSemLLM`, para não depender do LLM."""
 from __future__ import annotations
 

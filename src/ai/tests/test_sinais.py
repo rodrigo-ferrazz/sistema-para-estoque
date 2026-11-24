@@ -103,7 +103,7 @@ def test_todo_tipo_de_sinal_tem_limiar_e_mensagem(tipo: TipoSinal) -> None:
 def test_avaliacao_sem_a_probabilidade_de_algum_tipo_e_invalida() -> None:
     with pytest.raises(ValidationError, match="demanda_sazonal"):
         AvaliacaoSinais(
-            trecho_id="a.md#s", probabilidades={"atraso_do_fornecedor": 0.9, "encalhe": 0.1}, modelo="jev"
+            trecho_id="a.md#s", probabilidades={"atraso_do_fornecedor": 0.9, "encalhe": 0.1}, modelo="claude"
         )
 
 
@@ -198,7 +198,7 @@ def test_sem_trecho_aceito_nao_pergunta_os_sinais() -> None:
     assert sinais_corpus([make_trecho("a.md#s")], decisao).para_sugestao(sugestao(TOALHA), TOALHA) == []
 
 
-def test_jev_indisponivel_nos_sinais_propaga() -> None:
+def test_claude_indisponivel_nos_sinais_propaga() -> None:
     decisao = InMemoryDecisionModel(padrao=ACEITO, falhar_sinais=True)
 
     with pytest.raises(DecisaoIndisponivel):

@@ -1,5 +1,5 @@
 """Testes HTTP de `/skus/{sku_code}/sugestao-compra/sinais` com ERP, política, busca e
-Jev em memória."""
+Claude em memória."""
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -47,8 +47,8 @@ def client() -> Iterator[TestClient]:
 
 def preparar(decisao: InMemoryDecisionModel | None = None) -> None:
     """Giro de 100 por mês: o SKU que precisa comprar tem 150 disponíveis e compra da
-    Katrina; o outro tem 900 e fica sem compra, sem fornecedor. Sem `decisao`, o Jev
-    fica o de verdade, que falha sem `JEV_KEY`."""
+    Katrina; o outro tem 900 e fica sem compra, sem fornecedor. Sem `decisao`, o Claude
+    fica o de verdade, que falha sem `ANTHROPIC_API_KEY`."""
     katrina = make_fornecedor("Katrina Têxtil", lead_time_dias_contratado=35)
     adapter = InMemoryERPAdapter(
         skus=[PRECISA_COMPRAR, SEM_COMPRA],
@@ -78,7 +78,7 @@ def preparar(decisao: InMemoryDecisionModel | None = None) -> None:
         app.dependency_overrides[get_decision_model] = lambda: decisao
 
 
-def jev(**kwargs) -> InMemoryDecisionModel:
+def decisao_falsa(**kwargs) -> InMemoryDecisionModel:
     return InMemoryDecisionModel(
         padrao={"relevante": 0.9, "tem_evidencia": 0.9},
         sinais={REVISAO_Q1: {"atraso_do_fornecedor": 0.98}},
@@ -87,7 +87,7 @@ def jev(**kwargs) -> InMemoryDecisionModel:
 
 
 def test_sinais_da_sugestao_com_os_trechos_de_origem(client: TestClient) -> None:
-    preparar(jev())
+    preparar(decisao_falsa())
 
     response = client.get(f"/skus/{PRECISA_COMPRAR.sku_code}/sugestao-compra/sinais")
 
@@ -103,7 +103,7 @@ def test_sinais_da_sugestao_com_os_trechos_de_origem(client: TestClient) -> None
 
 
 def test_sugestao_sem_fornecedor_devolve_lista_vazia(client: TestClient) -> None:
-    preparar(jev(falhar_trechos=True, falhar_sinais=True))
+    preparar(decisao_falsa(falhar_trechos=True, falhar_sinais=True))
 
     response = client.get(f"/skus/{SEM_COMPRA.sku_code}/sugestao-compra/sinais")
 
@@ -112,7 +112,7 @@ def test_sugestao_sem_fornecedor_devolve_lista_vazia(client: TestClient) -> None
 
 
 def test_sku_inexistente_da_404(client: TestClient) -> None:
-    preparar(jev())
+    preparar(decisao_falsa())
 
     response = client.get("/skus/NAO-EXISTE/sugestao-compra/sinais")
 
@@ -120,8 +120,8 @@ def test_sku_inexistente_da_404(client: TestClient) -> None:
     assert "NAO-EXISTE" in response.json()["detail"]
 
 
-def test_jev_indisponivel_da_503(client: TestClient) -> None:
-    preparar(jev(falhar_sinais=True))
+def test_claude_indisponivel_da_503(client: TestClient) -> None:
+    preparar(decisao_falsa(falhar_sinais=True))
 
     response = client.get(f"/skus/{PRECISA_COMPRAR.sku_code}/sugestao-compra/sinais")
 
@@ -129,8 +129,8 @@ def test_jev_indisponivel_da_503(client: TestClient) -> None:
     assert response.json()["detail"]
 
 
-def test_sem_jev_key_da_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("JEV_KEY", "")
+def test_sem_claude_key_da_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     preparar()
 
     response = client.get(f"/skus/{PRECISA_COMPRAR.sku_code}/sugestao-compra/sinais")

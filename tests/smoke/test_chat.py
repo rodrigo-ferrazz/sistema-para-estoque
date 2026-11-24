@@ -1,6 +1,6 @@
-"""Smoke do `/chat` contra o Postgres real, com o Jev de verdade.
+"""Smoke do `/chat` contra o Postgres real, com o Claude de verdade.
 
-O primeiro teste troca o redator pelo `RedatorSemLLM` e é pulado sem `JEV_KEY`.
+O primeiro teste troca o redator pelo `RedatorSemLLM` e é pulado sem `ANTHROPIC_API_KEY`.
 O segundo usa o Claude real com `REDATOR=anthropic` e é pulado sem `ANTHROPIC_API_KEY`.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ def sem_llm() -> Iterator[None]:
 
 
 @pytest.mark.usefixtures("sem_llm")
-def test_chat_com_jev_real_responde_a_situacao_do_sku_e_grava_o_registro(client: TestClient) -> None:
+def test_chat_com_claude_real_responde_a_situacao_do_sku_e_grava_o_registro(client: TestClient) -> None:
     response = client.post("/chat", json={"pergunta": PERGUNTA})
 
     assert response.status_code == 200
@@ -52,7 +52,7 @@ def test_chat_com_jev_real_responde_a_situacao_do_sku_e_grava_o_registro(client:
 
 
 @pytest.mark.externo_llm("anthropic")
-def test_chat_com_jev_e_claude_reais_redige_a_situacao_do_sku(
+def test_chat_com_claude_e_claude_reais_redige_a_situacao_do_sku(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("REDATOR", "anthropic")

@@ -45,7 +45,7 @@ DECISAO = InMemoryDecisionModel(
         "a.md#atraso-medio": {"atraso_do_fornecedor": 0.85},
         "c.md#prazo": {"atraso_do_fornecedor": 0.30},
     },
-    modelo="jev-1.13.0",
+    modelo="claude-opus-5-5",
 )
 
 
@@ -89,7 +89,7 @@ def test_relatorio_mostra_limiar_regra_e_folga_de_cada_tipo() -> None:
     texto = relatorio(resultado(), CASOS)
     sazonal, encalhe = LIMIARES_SINAIS["demanda_sazonal"], LIMIARES_SINAIS["encalhe"]
 
-    assert "Modelo: jev-1.13.0" in texto
+    assert "Modelo: claude-opus-5-5" in texto
     assert "atraso_do_fornecedor: 0.50 (ponto_medio, folga 0.09 abaixo e 0.12 acima" in texto
     assert f"encalhe: {encalhe:.2f} (amostra_insuficiente; 1 positivo e 5 negativos" in texto
     assert (

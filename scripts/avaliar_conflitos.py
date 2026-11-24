@@ -1,14 +1,14 @@
-"""Avaliação do conflito entre trechos contra o Jev real (M8, ticket 05).
+"""Avaliação do conflito entre trechos contra o Claude real (M8, ticket 05).
 
 Duas etapas, nesta ordem:
 
 1. `--juntar`: roda a busca (com conflitos) das perguntas de `evals/casos.json` que vão
    ao corpus (`sugestao_compra` e `politica_ou_fornecedor`), grava todo par que a busca
-   mandou ao Jev, com a probabilidade, em `evals/resultados/buscas-conflito-<data>-<rotulo>.json`
+   mandou ao Claude, com a probabilidade, em `evals/resultados/buscas-conflito-<data>-<rotulo>.json`
    e imprime os pares que passaram do limiar atual e ainda não estão em
    `evals/pares_conflito.json`, com o texto dos dois trechos e sem a probabilidade, para
    rotular às cegas.
-2. Avaliação: roda `JevDecisionModel.avaliar_conflitos` nos pares rotulados, um request
+2. Avaliação: roda `ClaudeDecisionModel.avaliar_conflitos` nos pares rotulados, um request
    por par, grava as respostas cruas em `evals/resultados/conflitos-<data>-<rotulo>.json`
    e imprime a probabilidade de cada par e a varredura do limiar. Um par vira conflito
    quando a probabilidade passa do limiar. O `LIMIARES.conflito` sai da regra de
@@ -18,7 +18,7 @@ Duas etapas, nesta ordem:
    o limiar atual fica. Com `--buscas`, o relatório conta, por pergunta, os pares
    daquelas buscas que passam do limiar atual e do calibrado.
 
-    uv run python -m scripts.avaliar_conflitos --juntar --rotulo antes   # chama o Jev (JEV_KEY e o corpus no banco)
+    uv run python -m scripts.avaliar_conflitos --juntar --rotulo antes   # chama o Claude (ANTHROPIC_API_KEY e o corpus no banco)
     uv run python -m scripts.avaliar_conflitos --rotulo antes
     uv run python -m scripts.avaliar_conflitos --de-arquivo evals/resultados/conflitos-AAAA-MM-DD-antes.json \\
         --buscas evals/resultados/buscas-conflito-AAAA-MM-DD-antes.json
@@ -39,7 +39,8 @@ from src.ai.busca import LIMIARES as LIMIARES_BUSCA, BuscaContexto
 from src.ai.corpus import ler_corpus
 from src.ai.decisao import DecisionModel
 from src.ai.embeddings import Embedder, FastEmbedEmbedder
-from src.ai.jev import PERGUNTAS_CONFLITO, JevDecisionModel, criar_cliente
+from src.ai.claude import criar_cliente_claude
+from src.ai.claude_decisao import PERGUNTAS_CONFLITO, ClaudeDecisionModel, descrever_pergunta
 from src.ai.postgres import PostgresTrechosRepositorio
 from src.ai.repositorio import TrechosRepositorio
 from src.ai.schemas import AvaliacaoConflito, AvaliacaoTrecho, Trecho
@@ -226,22 +227,22 @@ def _gravar(arquivo: Path, conteudo: dict) -> None:
 
 def _juntar(pares: list[dict], rotulo: str | None) -> None:
     settings = get_settings()
-    if not settings.jev_key:
-        raise SystemExit("JEV_KEY vazio no .env")
+    if not settings.anthropic_api_key:
+        raise SystemExit("ANTHROPIC_API_KEY vazio no .env")
     arquivo = RESULTADOS / nome_do_resultado(date.today(), rotulo, prefixo="buscas-conflito")
     if arquivo.exists():
         raise SystemExit(f"{arquivo} já existe")
     casos = json.loads(CASOS.read_text(encoding="utf-8"))
     embedder = FastEmbedEmbedder(settings.embedding_model, settings.fastembed_cache_path)
-    with criar_cliente(settings.jev_key, settings.jev_model) as cliente:
-        buscas = juntar(embedder, PostgresTrechosRepositorio(get_engine()), JevDecisionModel(cliente), casos)
+    with criar_cliente_claude(settings.anthropic_api_key) as cliente:
+        buscas = juntar(embedder, PostgresTrechosRepositorio(get_engine()), ClaudeDecisionModel(cliente, settings.anthropic_decision_model), casos)
     _gravar(
         arquivo,
         {
             "executado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "modelo_pedido": settings.jev_model,
+            "modelo_pedido": settings.anthropic_decision_model,
             "limiar": LIMIARES_BUSCA.conflito,
-            "perguntas": {nome: pergunta.model_dump() for nome, pergunta in PERGUNTAS_CONFLITO.items()},
+            "perguntas": {nome: descrever_pergunta(pergunta) for nome, pergunta in PERGUNTAS_CONFLITO.items()},
             "buscas": buscas,
         },
     )
@@ -255,7 +256,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--juntar", action="store_true", help="roda as buscas e imprime os pares novos para rotular")
     parser.add_argument("--rotulo", help="sufixo no nome do resultado: conflitos-<data>-<rotulo>.json ou buscas-conflito-<data>-<rotulo>.json")
-    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Jev")
+    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Claude")
     parser.add_argument("--buscas", type=Path, help="buscas gravadas pelo --juntar, para contar os conflitos por pergunta")
     args = parser.parse_args()
 
@@ -270,18 +271,18 @@ def main() -> None:
             raise SystemExit(f"pares sem resposta em {args.de_arquivo}: {', '.join(' x '.join(p) for p in sorted(sem_resposta))}")
     else:
         settings = get_settings()
-        if not settings.jev_key:
-            raise SystemExit("JEV_KEY vazio no .env")
+        if not settings.anthropic_api_key:
+            raise SystemExit("ANTHROPIC_API_KEY vazio no .env")
         arquivo = RESULTADOS / nome_do_resultado(date.today(), args.rotulo)
         if arquivo.exists():
             raise SystemExit(f"{arquivo} já existe; use --de-arquivo para recalcular")
         trechos = {t.id: t for t in ler_corpus(settings.corpus_dir)}
-        with criar_cliente(settings.jev_key, settings.jev_model) as cliente:
-            respostas = rodar(JevDecisionModel(cliente), pares, trechos)
+        with criar_cliente_claude(settings.anthropic_api_key) as cliente:
+            respostas = rodar(ClaudeDecisionModel(cliente, settings.anthropic_decision_model), pares, trechos)
         resultado = {
             "executado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "modelo_pedido": settings.jev_model,
-            "perguntas": {nome: pergunta.model_dump() for nome, pergunta in PERGUNTAS_CONFLITO.items()},
+            "modelo_pedido": settings.anthropic_decision_model,
+            "perguntas": {nome: descrever_pergunta(pergunta) for nome, pergunta in PERGUNTAS_CONFLITO.items()},
             "respostas": respostas,
         }
         _gravar(arquivo, resultado)

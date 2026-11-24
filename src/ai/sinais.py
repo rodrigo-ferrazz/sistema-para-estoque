@@ -1,5 +1,5 @@
-"""Sinais do corpus sobre o fornecedor e o produto de uma sugestão de pedido (ADR-0002):
-a busca acha os trechos, o Jev responde trecho a trecho e o código decide o que vira
+"""Sinais do corpus sobre o fornecedor e o produto de uma sugestão de pedido (ADR-0008):
+a busca acha os trechos, o Claude responde trecho a trecho e o código decide o que vira
 sinal. Os sinais acompanham a sugestão e nunca alteram a quantidade.
 """
 from __future__ import annotations
@@ -24,10 +24,8 @@ from src.purchasing.schemas import SugestaoPedido
 K_SINAIS = 15
 MAX_TRECHOS_SINAIS = 10
 
-# Recalibrados pela regra de calibração do M8 (`scripts/avaliar_sinais.py` sobre as
-# respostas do jev-1.13.0 gravadas no M6): atraso e encalhe pelo ponto médio, venda
-# por época pelo meio da faixa de mais acertos
-# (`.scratch/refinamentos/issues/04-regra-de-calibracao.md`).
+# Regra de calibração do M8, por `scripts/avaliar_sinais.py` em `evals/sinais.json`.
+# A recalibrar com o Claude (ADR-0008): os valores vêm do modelo anterior.
 LIMIARES_SINAIS: dict[TipoSinal, float] = {"atraso_do_fornecedor": 0.80, "demanda_sazonal": 0.75, "encalhe": 0.55}
 
 _MENSAGENS: dict[TipoSinal, str] = {

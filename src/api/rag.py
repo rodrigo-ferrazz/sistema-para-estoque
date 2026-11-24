@@ -1,4 +1,4 @@
-"""Endpoint HTTP da busca no corpus com o filtro do Jev."""
+"""Endpoint HTTP da busca no corpus com o filtro do Claude."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/rag", tags=["rag"], dependencies=[Depends(exige_pape
 
 
 def decisao_indisponivel(request: Request, erro: Exception) -> JSONResponse:
-    """Handler de `DecisaoIndisponivel`: sem o Jev, a busca não sai sem filtro."""
+    """Handler de `DecisaoIndisponivel`: sem o Claude, a busca não sai sem filtro."""
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"detail": str(erro)}
     )

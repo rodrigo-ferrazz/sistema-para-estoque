@@ -82,7 +82,7 @@ def trecho(id: str, texto: str = "Lead time de 45 dias.", classificacao: Classif
         classificacao=classificacao,
         motivo_descarte=None,
         avaliacao=AvaliacaoTrecho(
-            trecho_id=id, relevante=0.9, tem_evidencia=0.9, contradiz_premissa=0.1, tenta_instruir=0.0, modelo="jev"
+            trecho_id=id, relevante=0.9, tem_evidencia=0.9, contradiz_premissa=0.1, tenta_instruir=0.0, modelo="claude"
         ),
     )
 

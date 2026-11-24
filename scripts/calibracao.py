@@ -1,6 +1,6 @@
 """Regra de calibração dos limiares do M8 (`.scratch/refinamentos/spec.md`, ticket 04).
 
-A entrada são as probabilidades ou confianças que o Jev deu aos casos rotulados.
+A entrada são as probabilidades ou confianças que o Claude deu aos casos rotulados.
 Positivos são os que o limiar deve deixar passar e negativos os que deve barrar.
 
 1. Amostra mínima: pelo menos 3 positivos e 3 negativos. Sem isso, o limiar atual fica

@@ -164,7 +164,7 @@ function resposta(r) {
   const temMarcas = r.resposta.search(CITACAO_NAO_CONFIRMADA) >= 0;
   return [
     textoComMarcas(r.resposta),
-    temMarcas ? el("p", { class: "suave" }, "Em vermelho, citações que o Jev não confirmou no trecho citado.") : null,
+    temMarcas ? el("p", { class: "suave" }, "Em vermelho, citações que o Claude não confirmou no trecho citado.") : null,
     el(
       "details",
       {},

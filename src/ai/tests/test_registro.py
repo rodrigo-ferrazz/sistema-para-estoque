@@ -84,7 +84,7 @@ def registro(minutos: int = 0, **campos: object) -> RegistroDecisao:
                 confianca_produto=0.71,
                 probabilidades_intencao={"situacao_sku": 0.93, "sugestao_compra": 0.07},
                 probabilidades_produto={"Toalha Banho Conforto": 0.71, "nenhum": 0.29},
-                modelo="jev-1.13.0",
+                modelo="claude-opus-5-5",
             ),
             "trechos": ["contratos/katrina.md#prazos", "reunioes/q1.md#katrina"],
             "redator": "anthropic:claude-sonnet-5-5",
@@ -120,7 +120,7 @@ def test_entendimento_volta_com_as_probabilidades(registros: RegistrosDecisao) -
 
     assert lido.entendimento.intencao.probabilidades == {"situacao_sku": 0.93, "sugestao_compra": 0.07}
     assert lido.entendimento.produto.probabilidades == {"Toalha Banho Conforto": 0.71, "nenhum": 0.29}
-    assert lido.entendimento.modelo == "jev-1.13.0"
+    assert lido.entendimento.modelo == "claude-opus-5-5"
 
 
 def test_resposta_em_codigo_grava_sem_redator_skus_nem_trechos(registros: RegistrosDecisao) -> None:

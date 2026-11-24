@@ -1,6 +1,6 @@
-"""Avaliação do entendimento da pergunta do chat contra o Jev real (M5, ticket 01; M8, ticket 03).
+"""Avaliação do entendimento da pergunta do chat contra o Claude real (M5, ticket 01; M8, ticket 03).
 
-Roda `JevDecisionModel.entender_pergunta` nos casos de um ou mais arquivos (`--casos`,
+Roda `ClaudeDecisionModel.entender_pergunta` nos casos de um ou mais arquivos (`--casos`,
 padrão `evals/casos.json`, ids únicos entre eles), com os produtos do catálogo lidos do
 banco (seed), grava as respostas cruas e imprime, por arquivo e no total, o acerto da
 intenção e o acerto do produto (escolha dentro de `produtos_aceitos`), mais a varredura
@@ -17,7 +17,7 @@ Os limiares saem da regra de calibração do M8 (`scripts/calibracao.py`):
 
 Se a `media` sair maior ou igual à `alta`, as faixas ficam e o relatório avisa.
 
-    uv run python -m scripts.avaliar_entendimento          # chama o Jev (precisa de JEV_KEY e do seed)
+    uv run python -m scripts.avaliar_entendimento          # chama o Claude (precisa de ANTHROPIC_API_KEY e do seed)
     uv run python -m scripts.avaliar_entendimento --casos evals/casos.json evals/intencoes.json --rotulo antes
     uv run python -m scripts.avaliar_entendimento --de-arquivo evals/resultados/entendimento-AAAA-MM-DD.json
 """
@@ -38,7 +38,8 @@ from scripts.relatorio_registros import normalizar_pergunta
 from src.ai.chat import FAIXAS
 from src.ai.decisao import DecisionModel
 from src.ai.identificacao import LIMIAR_PRODUTO, produtos_do_catalogo
-from src.ai.jev import PERGUNTA_INTENCAO, JevDecisionModel, criar_cliente, pergunta_produto
+from src.ai.claude import criar_cliente_claude
+from src.ai.claude_decisao import PERGUNTA_INTENCAO, ClaudeDecisionModel, descrever_pergunta, pergunta_produto
 from src.ai.schemas import NENHUM_PRODUTO, Entendimento, ProdutoCatalogo
 from src.catalog.service import Catalog
 from src.db.config import get_settings
@@ -215,7 +216,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--casos", type=Path, nargs="+", default=[CASOS], help="arquivos de casos (padrão: evals/casos.json)")
     parser.add_argument("--rotulo", help="sufixo no nome do resultado: entendimento-<data>-<rotulo>.json")
-    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Jev")
+    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Claude")
     args = parser.parse_args()
 
     try:
@@ -230,21 +231,21 @@ def main() -> None:
             raise SystemExit(f"casos sem resposta em {args.de_arquivo}: {', '.join(sorted(sem_resposta))}")
     else:
         settings = get_settings()
-        if not settings.jev_key:
-            raise SystemExit("JEV_KEY vazio no .env")
+        if not settings.anthropic_api_key:
+            raise SystemExit("ANTHROPIC_API_KEY vazio no .env")
         arquivo = RESULTADOS / nome_do_resultado(date.today(), args.rotulo)
         if arquivo.exists():
             raise SystemExit(f"{arquivo} já existe; use --de-arquivo para recalcular")
         produtos = produtos_do_catalogo(Catalog(PostgresERPAdapter(get_engine())).listar_skus())
-        with criar_cliente(settings.jev_key, settings.jev_model) as cliente:
-            respostas = rodar(JevDecisionModel(cliente), casos, produtos)
+        with criar_cliente_claude(settings.anthropic_api_key) as cliente:
+            respostas = rodar(ClaudeDecisionModel(cliente, settings.anthropic_decision_model), casos, produtos)
         resultado = {
             "executado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "modelo_pedido": settings.jev_model,
+            "modelo_pedido": settings.anthropic_decision_model,
             "casos": list(por_arquivo),
             "perguntas": {
-                "intencao": PERGUNTA_INTENCAO.model_dump(),
-                "produto": pergunta_produto(produtos).model_dump(),
+                "intencao": descrever_pergunta(PERGUNTA_INTENCAO),
+                "produto": descrever_pergunta(pergunta_produto(produtos)),
             },
             "respostas": respostas,
         }

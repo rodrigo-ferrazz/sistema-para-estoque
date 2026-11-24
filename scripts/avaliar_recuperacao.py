@@ -29,7 +29,7 @@ def main() -> None:
     if not CASOS.exists():
         raise SystemExit(
             f"{CASOS.relative_to(RAIZ)} não existe. Ele é criado pelo ticket 02 da spec 04 "
-            "(casos rotulados do spike do Jev)."
+            "(casos rotulados do spike do Claude)."
         )
     casos = [c for c in json.loads(CASOS.read_text(encoding="utf-8")) if c["trechos_relevantes"]]
 

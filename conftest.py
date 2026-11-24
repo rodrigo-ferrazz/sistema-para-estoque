@@ -14,8 +14,8 @@ CHAVES_DOS_LLMS = {"anthropic": "ANTHROPIC_API_KEY"}
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
     settings = get_settings()
-    if item.get_closest_marker("externo") and not settings.jev_key:
-        pytest.skip("JEV_KEY vazio: não chama o Jev real")
+    if item.get_closest_marker("externo") and not settings.anthropic_api_key:
+        pytest.skip("ANTHROPIC_API_KEY vazio: não chama o modelo de decisão real")
     marcador = item.get_closest_marker("externo_llm")
     if marcador:
         provedor = marcador.args[0] if marcador.args else None

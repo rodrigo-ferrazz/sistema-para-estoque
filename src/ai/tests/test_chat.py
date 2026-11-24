@@ -1,4 +1,4 @@
-"""Testes do `Copilot` com ERP, política, busca, Jev e redator em memória."""
+"""Testes do `Copilot` com ERP, política, busca, Claude e redator em memória."""
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping, Sequence
@@ -125,7 +125,7 @@ def copilot(
     registros: InMemoryRegistrosDecisao | None = None,
     avisos: Sequence[Aviso] = (),
 ) -> Copilot:
-    """Com `falhar_busca`, o Jev falha se a busca no corpus for chamada. Os trechos de
+    """Com `falhar_busca`, o Claude falha se a busca no corpus for chamada. Os trechos de
     `so_nos_sinais` só são aceitos na busca focada dos sinais."""
     adapter = adapter or erp()
     catalog = Catalog(adapter)
@@ -225,7 +225,7 @@ def test_situacao_do_sku_pelo_codigo_redige_com_a_ficha_e_a_politica() -> None:
     assert "## Trechos do corpus" not in contexto
 
 
-def test_situacao_do_sku_pelo_produto_do_jev_estreita_pela_cor() -> None:
+def test_situacao_do_sku_pelo_produto_do_claude_estreita_pela_cor() -> None:
     entendimento = make_entendimento("situacao_sku", 0.95, produto=TOALHA, confianca_produto=0.9)
 
     resposta = copilot(entendimento).responder("Como tá a toalha banho conforto bege?")
@@ -519,7 +519,7 @@ def test_queda_do_redator_cai_no_sem_llm_com_a_observacao() -> None:
     assert resposta.resposta.endswith("- O redator anthropic:modelo falhou; a resposta vai sem redação.")
 
 
-def test_jev_fora_do_ar_propaga_decisao_indisponivel_sem_registro() -> None:
+def test_claude_fora_do_ar_propaga_decisao_indisponivel_sem_registro() -> None:
     redator = RedatorGravador()
     registros = InMemoryRegistrosDecisao()
 
@@ -762,7 +762,7 @@ def test_trecho_de_origem_que_nao_coube_no_contexto_ainda_e_verificado_e_nao_inv
     assert resposta.resposta == f"A Katrina atrasa [{fora}]."
 
 
-def test_jev_fora_do_ar_nos_sinais_responde_sem_sinais_e_com_a_observacao_no_contexto() -> None:
+def test_claude_fora_do_ar_nos_sinais_responde_sem_sinais_e_com_a_observacao_no_contexto() -> None:
     redator = RedatorGravador("Compre 120 unidades.")
 
     resposta = copilot(
@@ -804,7 +804,7 @@ def test_resposta_redigida_por_llm_tem_as_citacoes_verificadas_e_marcadas() -> N
     ]
 
 
-def test_citacao_de_id_fora_do_contexto_e_inventada_sem_chamar_o_jev() -> None:
+def test_citacao_de_id_fora_do_contexto_e_inventada_sem_chamar_o_claude() -> None:
     inventado = "contratos/inexistente.md#prazos"
 
     resposta = copilot(
@@ -818,7 +818,7 @@ def test_citacao_de_id_fora_do_contexto_e_inventada_sem_chamar_o_jev() -> None:
     assert resposta.resposta == f"O prazo é de 45 dias [{inventado} - trecho inexistente]."
 
 
-def test_jev_fora_do_ar_na_verificacao_marca_as_citacoes_como_incertas_e_avisa() -> None:
+def test_claude_fora_do_ar_na_verificacao_marca_as_citacoes_como_incertas_e_avisa() -> None:
     resposta = copilot(
         make_entendimento("politica_ou_fornecedor", 0.95),
         redator=RedatorGravador(f"O teto é de 3 meses [{POLITICA_TETO}]."),

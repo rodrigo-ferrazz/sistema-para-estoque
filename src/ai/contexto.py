@@ -1,4 +1,4 @@
-"""Contexto que o redator recebe (ADR-0002).
+"""Contexto que o redator recebe (ADR-0008).
 
 Tudo que o redator pode citar já vem calculado e formatado pelo código: valores
 em reais, meses com uma casa decimal e dias inteiros. A cobertura sai em dias, como

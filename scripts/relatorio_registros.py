@@ -7,7 +7,7 @@ por ação; os vereditos de citação perto do `LIMIAR_CITACAO`; e os sinais por
 
 O registro não tem rótulo de acerto. `--exportar ARQ` grava as perguntas distintas que
 não estão em `evals/casos.json` nem em `evals/intencoes.json`, no formato dos casos e
-sem a resposta do Jev, para rotular às cegas.
+sem a resposta do Claude, para rotular às cegas.
 
     uv run python -m scripts.relatorio_registros
     uv run python -m scripts.relatorio_registros --exportar /tmp/perguntas.json
@@ -127,7 +127,7 @@ def vereditos(registros: Sequence[RegistroDecisao]) -> Counter[Veredito]:
 def perto_do_limiar(
     registros: Sequence[RegistroDecisao], limiar: float, distancia: float = DISTANCIA_DO_LIMIAR
 ) -> tuple[int, int]:
-    """(perto, avaliadas): quantas citações com confiança do Jev ficam a menos de `distancia`
+    """(perto, avaliadas): quantas citações com confiança do Claude ficam a menos de `distancia`
     do limiar, entre as que têm confiança."""
     confiancas = [c.confianca for r in registros for c in r.citacoes if c.confianca is not None]
     return sum(abs(c - limiar) < distancia for c in confiancas), len(confiancas)
@@ -144,7 +144,7 @@ def sugestoes_sem_sinais(registros: Sequence[RegistroDecisao]) -> tuple[int, int
 
 
 def perguntas_para_exportar(registros: Sequence[RegistroDecisao], conhecidas: Iterable[str]) -> list[dict]:
-    """Perguntas distintas fora de `conhecidas`, no formato dos casos e sem a resposta do Jev."""
+    """Perguntas distintas fora de `conhecidas`, no formato dos casos e sem a resposta do Claude."""
     ja_rotuladas = {normalizar_pergunta(p) for p in conhecidas}
     novas = [g[0].pergunta for chave, g in por_pergunta(registros).items() if chave not in ja_rotuladas]
     return [
@@ -191,7 +191,7 @@ def relatorio(registros: Sequence[RegistroDecisao], limiar_citacao: float = LIMI
     )
     nulos, sugestoes = sugestoes_sem_sinais(registros)
     linhas.append(f"Sinais por tipo: {_contagens(sinais_por_tipo(registros), get_args(TipoSinal))}")
-    linhas.append(f"  {nulos} de {sugestoes} sugestões com sinais nulos (Jev fora do ar)")
+    linhas.append(f"  {nulos} de {sugestoes} sugestões com sinais nulos (Claude fora do ar)")
     return "\n".join(linhas)
 
 

@@ -1,4 +1,4 @@
-"""Port do modelo de decisão (o Jev, pela ADR-0002).
+"""Port do modelo de decisão (o Claude, pela ADR-0008).
 
 O port é de domínio: quem usa recebe probabilidades já nomeadas, e as
 perguntas feitas ao modelo ficam dentro do adapter.

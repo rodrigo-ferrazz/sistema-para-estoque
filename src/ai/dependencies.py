@@ -7,9 +7,9 @@ from fastapi import Depends
 from src.ai.busca import BuscaContexto
 from src.ai.chat import Copilot
 from src.ai.claude import ClaudeRedator, criar_cliente_claude
+from src.ai.claude_decisao import ClaudeDecisionModel
 from src.ai.decisao import DecisaoIndisponivel, DecisionModel
 from src.ai.embeddings import Embedder, FastEmbedEmbedder
-from src.ai.jev import JevDecisionModel, criar_cliente
 from src.ai.postgres import PostgresRegistrosDecisao, PostgresTrechosRepositorio
 from src.ai.redator import Redator, RedatorSemLLM
 from src.ai.registro import RegistrosDecisao
@@ -45,14 +45,14 @@ def get_registros_decisao() -> RegistrosDecisao:
 
 def get_decision_model() -> DecisionModel:
     settings = get_settings()
-    if not settings.jev_key:
-        raise DecisaoIndisponivel("JEV_KEY não configurada")
-    return _jev(settings.jev_key, settings.jev_model)
+    if not settings.anthropic_api_key:
+        raise DecisaoIndisponivel("ANTHROPIC_API_KEY não configurada")
+    return _decisao_claude(settings.anthropic_api_key, settings.anthropic_decision_model)
 
 
 @lru_cache(maxsize=1)
-def _jev(chave: str, modelo: str) -> DecisionModel:
-    return JevDecisionModel(criar_cliente(chave, modelo))
+def _decisao_claude(chave: str, modelo: str) -> DecisionModel:
+    return ClaudeDecisionModel(criar_cliente_claude(chave), modelo)
 
 
 def get_redator() -> Redator:

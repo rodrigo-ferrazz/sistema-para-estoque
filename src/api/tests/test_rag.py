@@ -1,4 +1,4 @@
-"""Testes HTTP de `/rag/busca` com embedder, repositório e Jev em memória."""
+"""Testes HTTP de `/rag/busca` com embedder, repositório e Claude em memória."""
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -25,7 +25,7 @@ def client() -> Iterator[TestClient]:
 
 
 def preparar(trechos: list[Trecho], decisao: DecisionModel | None = None) -> None:
-    """Indexa `trechos` em memória e, com `decisao`, troca o Jev por ela."""
+    """Indexa `trechos` em memória e, com `decisao`, troca o Claude por ela."""
     embedder = FakeEmbedder()
     repositorio = repositorio_com(trechos, embedder)
     app.dependency_overrides[get_embedder] = lambda: embedder
@@ -55,7 +55,7 @@ def test_busca_devolve_os_trechos_classificados_com_as_probabilidades(client: Te
                     "tenta_instruir": 0.04,
                 }
             },
-            modelo="jev-1.13.0",
+            modelo="claude-opus-5-5",
         ),
     )
 
@@ -64,7 +64,7 @@ def test_busca_devolve_os_trechos_classificados_com_as_probabilidades(client: Te
     assert response.status_code == 200
     body = response.json()
     [item] = body.pop("trechos")
-    assert body == {"pergunta": PERGUNTA, "modelo": "jev-1.13.0", "conflitos": []}
+    assert body == {"pergunta": PERGUNTA, "modelo": "claude-opus-5-5", "conflitos": []}
     assert item.pop("similaridade") == pytest.approx(1.0)
     assert item == {
         "id": "fornecedores/katrina.md#lead-time",
@@ -164,7 +164,7 @@ def test_busca_devolve_os_conflitos_entre_trechos(client: TestClient) -> None:
         ),
     ],
 )
-def test_jev_indisponivel_da_503(client: TestClient, decisao: InMemoryDecisionModel) -> None:
+def test_claude_indisponivel_da_503(client: TestClient, decisao: InMemoryDecisionModel) -> None:
     preparar([make_trecho("a.md#s"), make_trecho("b.md#s", "lead time da Katrina em dias")], decisao)
 
     response = client.get("/rag/busca", params={"q": PERGUNTA})
@@ -173,14 +173,14 @@ def test_jev_indisponivel_da_503(client: TestClient, decisao: InMemoryDecisionMo
     assert response.json()["detail"]
 
 
-def test_sem_jev_key_da_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("JEV_KEY", "")
+def test_sem_claude_key_da_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     preparar([make_trecho("a.md#s")])
 
     response = client.get("/rag/busca", params={"q": PERGUNTA})
 
     assert response.status_code == 503
-    assert "JEV_KEY" in response.json()["detail"]
+    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
 
 
 def test_corpus_vazio_da_200_com_listas_vazias(client: TestClient) -> None:

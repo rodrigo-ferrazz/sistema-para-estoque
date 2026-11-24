@@ -117,7 +117,7 @@ class InMemoryDecisionModel(DecisionModel):
     citado em `citacoes`, qualquer que seja a afirmação, e vale `citacao_padrao`
     (`nao_trata` com confiança 1) para os outros. Com `falhar_entendimento`,
     `falhar_trechos`, `falhar_conflitos`, `falhar_sinais` ou `falhar_citacoes`,
-    o método correspondente lança `DecisaoIndisponivel` como o Jev fora do ar.
+    o método correspondente lança `DecisaoIndisponivel` como o Claude fora do ar.
     """
 
     def __init__(

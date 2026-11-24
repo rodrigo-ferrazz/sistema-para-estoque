@@ -136,7 +136,7 @@ def sinais_da_sugestao_compra(
     sinais_corpus: SinaisCorpus = Depends(get_sinais_corpus),
 ) -> list[SinalCorpusResponse]:
     """Sinais do corpus sobre o fornecedor e o produto da sugestão. Lista vazia quando a
-    sugestão não tem fornecedor; 503 sem o Jev."""
+    sugestão não tem fornecedor; 503 sem o Claude."""
     sku = sku_ou_404(catalog, sku_code)
     sugestao = purchasing.sugerir_pedido(sku_code)
     if sugestao is None:

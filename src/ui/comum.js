@@ -247,7 +247,7 @@ export function alertas(lista) {
 export function sinais(lista) {
   const titulo = el("h4", {}, "Sinais do corpus");
   if (lista === null) {
-    return [titulo, el("p", { class: "suave" }, "Não calculados: o Jev estava fora do ar quando a sugestão foi gerada.")];
+    return [titulo, el("p", { class: "suave" }, "Não calculados: o Claude estava fora do ar quando a sugestão foi gerada.")];
   }
   if (lista.length === 0) return [titulo, el("p", { class: "suave" }, "Nenhum sinal encontrado nos documentos.")];
   return [

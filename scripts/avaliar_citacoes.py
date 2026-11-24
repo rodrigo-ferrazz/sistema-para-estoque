@@ -1,6 +1,6 @@
-"""Avaliação da verificação de citações contra o Jev real (M6, ticket 02).
+"""Avaliação da verificação de citações contra o Claude real (M6, ticket 02).
 
-Roda `JevDecisionModel.verificar_citacoes` nos pares de `evals/citacoes.json`, um
+Roda `ClaudeDecisionModel.verificar_citacoes` nos pares de `evals/citacoes.json`, um
 request por par com o trecho do corpus, grava as respostas cruas e imprime o acerto
 por relação e a varredura do limiar: para cada limiar, quantas citações ficariam
 `incerta` (confiança abaixo dele), quantos erros sobram entre as decididas e quantas
@@ -12,7 +12,7 @@ O limiar é o ponto médio entre o erro de maior confiança e o acerto de menor
 confiança acima dele; com menos de 3 erros, o limiar atual fica. O relatório traz a
 regra e a folga.
 
-    uv run python -m scripts.avaliar_citacoes          # chama o Jev (precisa de JEV_KEY)
+    uv run python -m scripts.avaliar_citacoes          # chama o Claude (precisa de ANTHROPIC_API_KEY)
     uv run python -m scripts.avaliar_citacoes --de-arquivo evals/resultados/citacoes-AAAA-MM-DD.json
 """
 from __future__ import annotations
@@ -31,7 +31,8 @@ from scripts.calibracao import Calibracao, calibrar_erro_critico, descrever, for
 from src.ai.citacoes import LIMIAR_CITACAO, veredito
 from src.ai.corpus import ler_corpus
 from src.ai.decisao import DecisionModel
-from src.ai.jev import PERGUNTAS_CITACAO, JevDecisionModel, criar_cliente
+from src.ai.claude import criar_cliente_claude
+from src.ai.claude_decisao import PERGUNTAS_CITACAO, ClaudeDecisionModel, descrever_pergunta
 from src.ai.schemas import AvaliacaoCitacao, Relacao, Trecho
 from src.db.config import get_settings
 
@@ -71,7 +72,7 @@ def avaliacoes(resultado: dict) -> dict[str, AvaliacaoCitacao]:
 
 
 def acertos_por_relacao(casos: list[dict], por_caso: dict[str, AvaliacaoCitacao]) -> dict[Relacao, tuple[int, int]]:
-    """(acertos, total) da escolha do Jev por relação esperada, sem olhar a confiança."""
+    """(acertos, total) da escolha do Claude por relação esperada, sem olhar a confiança."""
     return {
         relacao: (
             sum(por_caso[c["id"]].escolha == relacao for c in casos if c["esperado"] == relacao),
@@ -137,7 +138,7 @@ def relatorio(resultado: dict, casos: list[dict]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Jev")
+    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Claude")
     args = parser.parse_args()
 
     casos = json.loads(CASOS.read_text(encoding="utf-8"))
@@ -145,18 +146,18 @@ def main() -> None:
         resultado = json.loads(args.de_arquivo.read_text(encoding="utf-8"))
     else:
         settings = get_settings()
-        if not settings.jev_key:
-            raise SystemExit("JEV_KEY vazio no .env")
+        if not settings.anthropic_api_key:
+            raise SystemExit("ANTHROPIC_API_KEY vazio no .env")
         arquivo = RESULTADOS / f"citacoes-{date.today().isoformat()}.json"
         if arquivo.exists():
             raise SystemExit(f"{arquivo} já existe; use --de-arquivo para recalcular")
         trechos = {t.id: t for t in ler_corpus(settings.corpus_dir)}
-        with criar_cliente(settings.jev_key, settings.jev_model) as cliente:
-            respostas = rodar(JevDecisionModel(cliente), casos, trechos)
+        with criar_cliente_claude(settings.anthropic_api_key) as cliente:
+            respostas = rodar(ClaudeDecisionModel(cliente, settings.anthropic_decision_model), casos, trechos)
         resultado = {
             "executado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "modelo_pedido": settings.jev_model,
-            "perguntas": {nome: pergunta.model_dump() for nome, pergunta in PERGUNTAS_CITACAO.items()},
+            "modelo_pedido": settings.anthropic_decision_model,
+            "perguntas": {nome: descrever_pergunta(pergunta) for nome, pergunta in PERGUNTAS_CITACAO.items()},
             "respostas": respostas,
         }
         RESULTADOS.mkdir(parents=True, exist_ok=True)

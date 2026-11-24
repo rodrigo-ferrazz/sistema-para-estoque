@@ -11,7 +11,6 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "psycopg[binary]>=3.2",
-    "typesafe-sdk>=0.7.1",
     "pyyaml>=6.0",
     "fastembed>=0.8.1",
     "pgvector>=0.5.0",
@@ -40,7 +39,7 @@ asyncio_mode = "auto"
 addopts = "-ra"
 markers = [
     "smoke: end-to-end tests that require Postgres + seed (docker compose up + alembic upgrade head)",
-    "externo: chamam um serviço externo pago (o Jev); pulados sem JEV_KEY",
+    "externo: chamam o modelo de decisão real (Claude, pago); pulados sem ANTHROPIC_API_KEY",
     "externo_llm(provedor): chamam o LLM redator real do provedor (\"anthropic\"); pulados sem a chave dele (ANTHROPIC_API_KEY)",
     "papeis(*papeis): o usuário fake dos testes HTTP só tem estes papéis (sem o marcador, tem todos)",
     "login_de_verdade: sem o usuário fake; o teste faz login de verdade",

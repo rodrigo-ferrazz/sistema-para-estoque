@@ -2,7 +2,7 @@
 
 Assistente de decisão de compras para um atacadista de cama, mesa e banho: sugere o que comprar, quanto, de quem e quando, a partir de um ERP simulado e de um corpus de documentos (contratos, atas, políticas), sempre com o comprador chefe decidindo no fim. Vocabulário, decisões e restrições de domínio vivem em [`CONTEXT.md`](CONTEXT.md).
 
-**MVP completo (M0-M8 do [roadmap](.scratch/copilot-compras/roadmap.md)).** A sugestão de pedido é determinística: giro, cobertura, em trânsito, lead time e MOQ calculados em código, com os parâmetros de uma política de compra que o próprio comprador preenche num onboarding. Em volta dela, a IA segue a [ADR-0002](docs/adr/0002-jev-decide-codigo-executa-llm-redige.md): o Jev (TypeSafe) toma decisões tipadas com confiança (intenção da pergunta, relevância de trecho, sinais do corpus como atraso do fornecedor e encalhe, verificação de citações), o código executa e um LLM (Claude) só redige a resposta do chat.
+**MVP completo (M0-M8).** A sugestão de pedido é determinística: giro, cobertura, em trânsito, lead time e MOQ calculados em código, com os parâmetros de uma política de compra que o próprio comprador preenche num onboarding. Em volta dela, a IA segue a [ADR-0008](docs/adr/0008-claude-decide-codigo-executa-llm-redige.md): o Claude toma decisões fechadas com probabilidades (intenção da pergunta, relevância de trecho, sinais do corpus como atraso do fornecedor e encalhe, verificação de citações), o código executa e o Claude, como redator, só redige a resposta do chat. Até 2026-11 o modelo de decisão era o Jev (TypeSafe, [ADR-0002](docs/adr/0002-jev-decide-codigo-executa-llm-redige.md)); os limiares ainda são os calibrados com ele e precisam ser medidos de novo.
 
 **Plataforma da operação de estoque ([spec 09](.scratch/plataforma/spec.md)).** Compra é uma cadeia que vai da necessidade do cliente da loja até a mercadoria estar na gôndola. Depois da reunião com o comprador chefe, o Copilot deixou de olhar só para ele e ganhou um painel por papel, todos alimentados pelos mesmos dados do ERP, com login e notificações:
 
@@ -43,7 +43,7 @@ uv run python -m scripts.criar_admin --nome "Seu nome" --email voce@loja.com
 
 Toda tela e toda rota, menos `/health` e `/login`, exigem login ([ADR-0007](docs/adr/0007-usuarios-sessao-e-papeis.md)). O primeiro admin entra em `/ui/login.html` e cadastra as outras pessoas na tela "Usuários". Para criar alguém direto pelo terminal, passe `--papeis` (`comprador`, `vendas`, `reposicao`, `admin`, separados por vírgula); sem terminal, o comando lê a senha do pipe (`echo 'uma-senha' | uv run python -m scripts.criar_admin --nome Rafa --email rafa@loja.com --papeis reposicao`). Fora do ambiente local, defina `AMBIENTE=producao` para o cookie de sessão sair com `Secure`.
 
-A ingestão baixa o modelo de embedding para `.cache/fastembed` na primeira vez. Os endpoints que usam o Jev (`/rag/busca`, `/chat` e `/skus/{sku_code}/sugestao-compra/sinais`) também precisam da `JEV_KEY` (chave da API da TypeSafe) no `.env`: copie o `.env.example` e preencha. Sem a chave, só esses respondem 503. A chave do redator (`ANTHROPIC_API_KEY`) é opcional: sem ela, o chat responde com os dados que reuniu, sem redação.
+A ingestão baixa o modelo de embedding para `.cache/fastembed` na primeira vez. Os endpoints que usam o modelo de decisão (`/rag/busca`, `/chat` e `/skus/{sku_code}/sugestao-compra/sinais`) também precisam da `ANTHROPIC_API_KEY` no `.env`: copie o `.env.example` e preencha. Sem a chave, só esses respondem 503. A mesma chave serve ao redator; com `REDATOR=sem_llm`, o chat responde com os dados que reuniu, sem redação.
 
 O app fica em `http://localhost:8000`. Confirme com:
 
@@ -69,16 +69,15 @@ O painel volta a ter só os motivos de alerta calculados, os registros de decis�
 
 ## Variáveis de ambiente
 
-Todas têm padrão, menos as chaves (`JEV_KEY` e `ANTHROPIC_API_KEY`), e podem vir do `.env` na raiz (veja o `.env.example`). No `docker compose`, o app recebe o `DATABASE_URL` do próprio compose e só as duas chaves e o `REDATOR` do `.env`; as outras ficam no padrão dentro do container.
+Todas têm padrão, menos a chave (`ANTHROPIC_API_KEY`), e podem vir do `.env` na raiz (veja o `.env.example`). No `docker compose`, o app recebe o `DATABASE_URL` do próprio compose e só a chave e o `REDATOR` do `.env`; as outras ficam no padrão dentro do container.
 
 | Variável | Padrão | Para quê |
 | -------- | ------ | -------- |
 | `DATABASE_URL` | `postgresql+psycopg://copilot:copilot@localhost:5432/copilot` | Conexão com o Postgres. |
-| `JEV_KEY` | vazio | Chave da API da TypeSafe. Sem ela, os endpoints que usam o Jev respondem 503 e os testes `externo` são pulados. |
-| `JEV_MODEL` | `jev-1.13.0` | Versão fixa do Jev. Os limiares da busca e do chat foram calibrados nela. |
 | `REDATOR` | `auto` | Redator das respostas do chat: `auto`, `anthropic` ou `sem_llm`. Em `auto`, o Claude se houver `ANTHROPIC_API_KEY`, senão sem LLM. `anthropic` sem a chave impede o app de subir; `sem_llm` ignora a chave. A queda do Claude vai para o redator sem LLM. |
-| `ANTHROPIC_API_KEY` | vazio | Chave da API da Anthropic, para o redator Claude. Sem ela, os testes `externo_llm("anthropic")` são pulados. |
+| `ANTHROPIC_API_KEY` | vazio | Chave da API da Anthropic, para o modelo de decisão e o redator. Sem ela, os endpoints que usam o modelo de decisão respondem 503 e os testes `externo` e `externo_llm("anthropic")` são pulados. |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5-5` | Modelo do redator Claude. |
+| `ANTHROPIC_DECISION_MODEL` | `claude-opus-5-5` | Modelo das decisões (intenção, relevância, conflito, sinais, citações), com esforço baixo. Mudar de modelo pede medir os limiares de novo. |
 | `EMBEDDING_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Modelo de embedding local (fastembed, 384 dimensões). |
 | `CORPUS_DIR` | `corpus` | Pasta que `scripts.ingerir_corpus` lê. |
 | `FASTEMBED_CACHE_PATH` | `.cache/fastembed` | Onde o modelo de embedding fica em cache. |
@@ -89,7 +88,7 @@ Os testes se dividem em quatro categorias:
 
 - **Unitários e de integração leve** (padrão) - não dependem do Postgres. Usam os adapters em memória (`InMemoryERPAdapter`, `InMemoryDecisionModel`, `FakeEmbedder`).
 - **Smoke end-to-end** (`tests/smoke/`) - sobem o app real contra o Postgres real com seed populado e o corpus ingerido com o embedding de verdade, e contam a história da demo com os cenários do seed: login de verdade com papel e saída (`test_login.py`); aviso e decisão de compra, ruptura com notificação, queda de venda com verificação e estoque divergente, e entrega atrasada com cobrança (`test_painel.py`); aviso de gôndola vazia com verificação e mix de gôndola (`test_reposicao.py`).
-- **Externos** (marcador `externo`) - chamam o Jev real, com custo desprezível. São pulados sem `JEV_KEY`.
+- **Externos** (marcador `externo`) - chamam o Claude real como modelo de decisão, com custo baixo (uns 10 pedidos). São pulados sem `ANTHROPIC_API_KEY`.
 - **Externos com LLM** (marcador `@pytest.mark.externo_llm("anthropic")`) - chamam o Claude real e são pulados sem `ANTHROPIC_API_KEY`. O marcador sem provedor é erro de uso.
 
 Os dois marcadores são independentes: `-m "not externo"` ainda roda os `externo_llm` cujas chaves estão no `.env`. Para rodar sem nenhuma chamada paga, exclua os dois.
@@ -158,7 +157,7 @@ Toda rota, menos `/health` e `/login`, exige a sessão do cookie `copilot_sessao
 | `GET` | `/skus/{sku_code}/analise` | comprador | Análise composta: nome, produto, categoria, cor, tamanho, estoque, em trânsito, giro, cobertura (em meses e em dias), fornecedores. |
 | `GET` | `/skus/abaixo-do-piso?dias=20` | comprador | SKUs com cobertura abaixo do piso de alerta. Sem `dias`, usa o `piso_alerta_dias` da política ativa. |
 | `GET` | `/skus/{sku_code}/sugestao-compra` | comprador | Sugestão de pedido: quantidade, fornecedor, valor, memória de cálculo e alertas. |
-| `GET` | `/skus/{sku_code}/sugestao-compra/sinais` | comprador | Sinais do corpus sobre o fornecedor e o produto da sugestão, com os trechos de origem. Lista vazia quando a sugestão não tem fornecedor; 503 sem o Jev. |
+| `GET` | `/skus/{sku_code}/sugestao-compra/sinais` | comprador | Sinais do corpus sobre o fornecedor e o produto da sugestão, com os trechos de origem. Lista vazia quando a sugestão não tem fornecedor; 503 sem o modelo de decisão. |
 | `GET` | `/skus/{sku_code}/vendas?meses=12` | comprador | Série mensal de vendas. |
 | `GET` | `/skus/{sku_code}/sazonalidade` | comprador | Multiplicadores mês-a-mês (1 = neutro). |
 | `GET` | `/skus/{sku_code}/fornecedores` | comprador | Preço, MOQ e lead time por fornecedor. |
@@ -173,8 +172,8 @@ Toda rota, menos `/health` e `/login`, exige a sessão do cookie `copilot_sessao
 | `PUT` | `/setores/{id}` | admin | Renomeia, desativa ou reativa (`nome`, `ativo`). 409 com nome repetido. |
 | `GET` | `/politica-compra` | comprador | Política de compra ativa (`versao`, `criada_em`, `parametros`). |
 | `PUT` | `/politica-compra` | comprador | Recebe os parâmetros completos, inclusive os motivos de alerta do painel, a sensibilidade da queda de venda e o período do mix de gôndola, valida e grava uma versão nova (201, ou 422 se inválida). |
-| `GET` | `/rag/busca?q=...&k=30` | comprador | Trechos do corpus mais parecidos com a pergunta, classificados pelo filtro do Jev, e os conflitos entre eles. |
-| `POST` | `/chat` | comprador | Responde em texto a pergunta do comprador chefe, com o entendimento do Jev, a faixa de confiança, a ação, os dados que foram ao redator (sugestões com os sinais do corpus) e a verificação das citações. `sku_code` opcional: o SKU da tela de onde ele pergunta (404 se não existe). |
+| `GET` | `/rag/busca?q=...&k=30` | comprador | Trechos do corpus mais parecidos com a pergunta, classificados pelo filtro do Claude, e os conflitos entre eles. |
+| `POST` | `/chat` | comprador | Responde em texto a pergunta do comprador chefe, com o entendimento do Claude, a faixa de confiança, a ação, os dados que foram ao redator (sugestões com os sinais do corpus) e a verificação das citações. `sku_code` opcional: o SKU da tela de onde ele pergunta (404 se não existe). |
 | `GET` | `/chat/registros?limite=20` | comprador | Registros de decisão do chat, do mais recente para o mais antigo (`limite` de 1 a 100). |
 | `GET` | `/ui/` | aberto | UI sem build (ver "[Telas por papel](#telas-por-papel)"). `/` redireciona para cá. |
 
@@ -291,7 +290,7 @@ A justificativa está em [`docs/adr/0003-politica-de-compra-configuravel.md`](do
 
 ### Busca no corpus: `GET /rag/busca`
 
-A busca recupera os `k` trechos mais parecidos com `q` (padrão 30, de 1 a 40) e faz ao Jev quatro perguntas sobre cada um: se é relevante para a pergunta, se tem evidência que responde a ela, se contradiz algo que a pergunta dá como certo e se tenta dar instruções ao sistema. Quem classifica é o código, com os limiares de `LIMIARES` em `src/ai/busca.py`, nesta ordem:
+A busca recupera os `k` trechos mais parecidos com `q` (padrão 30, de 1 a 40) e faz ao Claude quatro perguntas sobre cada um, num pedido por trecho: se é relevante para a pergunta, se tem evidência que responde a ela, se contradiz algo que a pergunta dá como certo e se tenta dar instruções ao sistema. Quem classifica é o código, com os limiares de `LIMIARES` em `src/ai/busca.py`, nesta ordem:
 
 1. tenta dar instruções: `descartado` (`injecao`)
 2. contradiz a premissa da pergunta: `conflitante`
@@ -299,11 +298,11 @@ A busca recupera os `k` trechos mais parecidos com `q` (padrão 30, de 1 a 40) e
 4. tem evidência: `aceito`
 5. senão: `descartado` (`sem_evidencia`)
 
-Depois, o Jev compara dois a dois os aceitos e conflitantes de documentos diferentes, entre os 6 mais parecidos. Os pares com probabilidade acima de `LIMIARES.conflito` (0,40, calibrado no M8 com 28 pares rotulados) vão para `conflitos`. A busca só sinaliza: não escolhe o lado certo nem compara datas.
+Depois, o Claude compara dois a dois os aceitos e conflitantes de documentos diferentes, entre os 6 mais parecidos. Os pares com probabilidade acima de `LIMIARES.conflito` (0,40, calibrado no M8 com o Jev e 28 pares rotulados; a medir de novo com o Claude) vão para `conflitos`. A busca só sinaliza: não escolhe o lado certo nem compara datas.
 
-A resposta traz também os `descartado`, de propósito, para auditar o filtro. Se o Jev estiver fora do ar ou faltar a `JEV_KEY`, a resposta é 503. A busca nunca sai sem o filtro. Com o corpus ainda não ingerido, a resposta é 200 com as listas vazias.
+A resposta traz também os `descartado`, de propósito, para auditar o filtro. Se o modelo de decisão estiver fora do ar ou faltar a `ANTHROPIC_API_KEY`, a resposta é 503. A busca nunca sai sem o filtro. Com o corpus ainda não ingerido, a resposta é 200 com as listas vazias.
 
-Exemplo real de `GET /rag/busca?q=lead time da Katrina` (M8, Jev real), cortado para 3 dos 30 trechos (8 aceitos e 22 descartados):
+Exemplo real de `GET /rag/busca?q=lead time da Katrina` (M8, com o Jev, o modelo de decisão anterior), cortado para 3 dos 30 trechos (8 aceitos e 22 descartados):
 
 ```json
 {
@@ -390,22 +389,22 @@ Exemplo real de `GET /rag/busca?q=lead time da Katrina` (M8, Jev real), cortado 
 }
 ```
 
-O único conflito é a justificativa do Natal 2024 ("lead time real da Katrina em outubro-novembro passou de 45 pra 68 dias") contra as notas internas do contrato ("cláusula 3 é rigorosamente cumprida pela Katrina em setembro-outubro"). O par do exemplo do [`CONTEXT.md`](CONTEXT.md), a cláusula 3 do contrato (45 dias) contra a revisão Q1/2025 (62 dias observados), vem com os dois trechos aceitos, mas **não** sai como conflito: o Jev dá a ele uns 0,12, abaixo do limiar (ver os limites conhecidos do chat). O atraso da Katrina continua chegando ao comprador pelos sinais do corpus da sugestão.
+O único conflito é a justificativa do Natal 2024 ("lead time real da Katrina em outubro-novembro passou de 45 pra 68 dias") contra as notas internas do contrato ("cláusula 3 é rigorosamente cumprida pela Katrina em setembro-outubro"). O par do exemplo do [`CONTEXT.md`](CONTEXT.md), a cláusula 3 do contrato (45 dias) contra a revisão Q1/2025 (62 dias observados), vem com os dois trechos aceitos, mas **não** sai como conflito: o Jev dava a ele uns 0,12, abaixo do limiar (ver os limites conhecidos do chat). O atraso da Katrina continua chegando ao comprador pelos sinais do corpus da sugestão.
 
 `trechos` vem com os aceitos primeiro, depois os conflitantes e os descartados, e dentro de cada grupo pela similaridade. `trecho_a` é o trecho do par mais parecido com a pergunta.
 
-O papel do Jev (ele responde, o código decide) está na [ADR-0002](docs/adr/0002-jev-decide-codigo-executa-llm-redige.md), e o embedding local, na [ADR-0004](docs/adr/0004-embeddings-locais.md). As perguntas, os limiares e o que o spike mediu estão em [`.scratch/rag-jev/spike-resultado.md`](.scratch/rag-jev/spike-resultado.md). O gate da ADR-0002 não passou na relevância, e o dev manteve a ADR aceitando o risco: a busca prefere deixar passar trecho irrelevante a perder trecho relevante.
+O papel do modelo de decisão (ele responde, o código decide) está na [ADR-0008](docs/adr/0008-claude-decide-codigo-executa-llm-redige.md), e o embedding local, na [ADR-0004](docs/adr/0004-embeddings-locais.md). Os limiares vieram do spike com o Jev ([`.scratch/rag-jev/spike-resultado.md`](.scratch/rag-jev/spike-resultado.md)), que priorizou não perder trecho relevante: a busca prefere deixar passar trecho irrelevante. Com o Claude, eles precisam ser medidos de novo.
 
 ### Chat: `POST /chat`
 
-O chat segue a [ADR-0002](docs/adr/0002-jev-decide-codigo-executa-llm-redige.md): o Jev entende a pergunta, o código decide o que fazer e busca os dados, e o LLM só redige.
+O chat segue a [ADR-0008](docs/adr/0008-claude-decide-codigo-executa-llm-redige.md): o Claude entende a pergunta, o código decide o que fazer e busca os dados, e o LLM só redige.
 
 ```mermaid
 sequenceDiagram
     actor C as Comprador chefe
     participant A as POST /chat
     participant K as Copilot (ai)
-    participant J as Jev
+    participant J as Claude (decisão)
     participant D as catalog, ficha_sku,<br/>purchasing, politica_compra
     participant P as Postgres
     participant R as Redator (Claude)
@@ -418,7 +417,7 @@ sequenceDiagram
     alt faixa baixa, fora de escopo ou SKU não identificado
         K->>K: esclarecimento ou resposta fixa, em código
     else faixa alta ou média
-        K->>K: identificação dos SKUs (código na pergunta, produto do Jev ou SKU da tela)
+        K->>K: identificação dos SKUs (código na pergunta, produto do Claude ou SKU da tela)
         K->>D: por intenção: fichas, sugestões de pedido, política ativa
         K->>P: busca vetorial no corpus (sugestão, política ou fornecedor)
         K->>J: relevância, evidência, premissa, injeção e conflitos dos trechos
@@ -433,16 +432,16 @@ sequenceDiagram
     A-->>C: resposta
 ```
 
-1. **Entendimento** (Jev, um request): duas `Choice` sobre a pergunta, com as probabilidades. A intenção (`situacao_sku`, `sugestao_compra`, `politica_ou_fornecedor`, `alertas_e_avisos` ou `fora_de_escopo`) e o produto do catálogo que a pergunta cita (ou `nenhum`).
+1. **Entendimento** (Claude, um pedido): duas perguntas de escolha sobre a pergunta, com as probabilidades. A intenção (`situacao_sku`, `sugestao_compra`, `politica_ou_fornecedor`, `alertas_e_avisos` ou `fora_de_escopo`) e o produto do catálogo que a pergunta cita (ou `nenhum`).
 2. **Faixa de confiança** da intenção (`FAIXAS` em `src/ai/chat.py`): alta (a partir de 0,80) responde; média (a partir de 0,50) responde, mas começa confirmando o que entendeu; baixa pede esclarecimento com as duas intenções mais prováveis, sem ler dados nem chamar o redator. Fora de escopo recebe uma resposta fixa.
-3. **SKUs** (`src/ai/identificacao.py`): um código de SKU escrito na pergunta sempre ganha. Sem código, vale o produto escolhido pelo Jev com confiança a partir de `LIMIAR_PRODUTO` (0,60, medido com `scripts.avaliar_entendimento`), estreitado pelas cores e tamanhos citados, até 12 SKUs. Sem nenhum dos dois, vale o SKU da tela de onde o comprador perguntou (`sku_code` no corpo, origem `contexto`; ver "Chat em contexto"). Se a pergunta é sobre a situação de um SKU e nenhum foi identificado, o chat pede o código e cita os produtos candidatos.
+3. **SKUs** (`src/ai/identificacao.py`): um código de SKU escrito na pergunta sempre ganha. Sem código, vale o produto escolhido pelo Claude com confiança a partir de `LIMIAR_PRODUTO` (0,60, medido com `scripts.avaliar_entendimento`), estreitado pelas cores e tamanhos citados, até 12 SKUs. Sem nenhum dos dois, vale o SKU da tela de onde o comprador perguntou (`sku_code` no corpo, origem `contexto`; ver "Chat em contexto"). Se a pergunta é sobre a situação de um SKU e nenhum foi identificado, o chat pede o código e cita os produtos candidatos.
 4. **Montagem** por intenção: situação do SKU lê as fichas e a política ativa; sugestão de compra calcula as sugestões (as mesmas de `/sugestao-compra`), os sinais do corpus de cada uma, lê a política e busca no corpus; política ou fornecedor só busca no corpus; alertas e avisos lê o painel de alertas calculado na hora (avisos abertos da equipe de vendas, motivos de alerta, cobertura e sugestão), só dos SKUs citados quando a pergunta cita produto, sem usar o SKU da tela e sem buscar no corpus. Da busca, vão ao redator só os trechos `aceito` e `conflitante`, até 10, e os trechos de origem dos sinais completam esse total (os da pergunta têm prioridade).
 5. **Redação**: o código renderiza o contexto (`src/ai/contexto.py`) com todo número já calculado, os sinais abaixo de cada sugestão e os trechos marcados como dado não confiável, e o redator escolhido por `REDATOR` (`ClaudeRedator` em `src/ai/claude.py`) redige seguindo `INSTRUCOES_REDATOR` (`src/ai/redator.py`): começar pelas quantidades de cada sugestão, falar de todo sinal do corpus com um trecho de origem, copiar os números sem converter nem comparar, não recomendar fornecedor nem opinar sobre a compra, citar só ids de trecho, um por frase, e nunca aprovar pedido. A redação passa por uma limpeza em código (`limpar_redacao`: hífen não separável vira hífen, espaços especiais viram espaço, `【】` vira `[]` e o espaço de largura zero sai), para o código do SKU ser copiável e as citações serem extraídas. Sem a chave da Anthropic, ou se o Claude falhar, o `RedatorSemLLM` devolve o contexto sem redação e `redator` vira `sem_llm`.
-6. **Verificação das citações** (só quando um LLM redigiu): cada `[id do trecho]` da redação é conferido pelo Jev contra a frase que o cita, e o que não é confirmado fica marcado no texto. Detalhes na seção seguinte.
+6. **Verificação das citações** (só quando um LLM redigiu): cada `[id do trecho]` da redação é conferido pelo Claude contra a frase que o cita, e o que não é confirmado fica marcado no texto. Detalhes na seção seguinte.
 
-`acao` diz o que o chat fez: `respondeu`, `confirmou_e_respondeu`, `pediu_esclarecimento` ou `fora_de_escopo`. `redator` é nulo nas respostas feitas em código. Sem `JEV_KEY`, ou com o Jev fora do ar no entendimento, a resposta é 503. Cada pergunta é independente: não há histórico de conversa.
+`acao` diz o que o chat fez: `respondeu`, `confirmou_e_respondeu`, `pediu_esclarecimento` ou `fora_de_escopo`. `redator` é nulo nas respostas feitas em código. Sem `ANTHROPIC_API_KEY`, ou com o modelo de decisão fora do ar no entendimento, a resposta é 503. Cada pergunta é independente: não há histórico de conversa.
 
-Exemplo real de `POST /chat` (do M5, antes dos campos `citacoes` e `sugestoes[].sinais`, que estão no exemplo da seção seguinte) com `{"pergunta": "Qual a situação do SKU TBC-BEGE-70140-01?"}`, com as probabilidades do produto cortadas para as que não são zero (o Jev devolve uma por produto do catálogo):
+Exemplo real de `POST /chat` (do M5, com o Jev como modelo de decisão, antes dos campos `citacoes` e `sugestoes[].sinais`, que estão no exemplo da seção seguinte) com `{"pergunta": "Qual a situação do SKU TBC-BEGE-70140-01?"}`, com as probabilidades do produto cortadas para as que não são zero (o modelo de decisão devolve uma por produto do catálogo):
 
 ```json
 {
@@ -533,7 +532,7 @@ A redação desse exemplo, do M5, mostra os limites que o M8 atacou (ver os limi
 
 ### Registro de decisão: `GET /chat/registros`
 
-Todo `POST /chat` respondido grava um registro em `copilot.registros_decisao` (migrations [`0004_registros_decisao`](alembic/versions/0004_registros_decisao.py) e [`0005_sinais_e_citacoes`](alembic/versions/0005_sinais_e_citacoes.py)): a pergunta, o entendimento cru do Jev com as probabilidades, a faixa, a ação, os SKUs, os ids dos trechos que foram ao redator, o redator, a resposta, a duração, os sinais de cada sugestão (`sinais`, um item por SKU sugerido, com `sinais` vazio quando foram calculados sem nenhum sinal e nulo quando o Jev caiu e eles não foram calculados) e a verificação de cada citação (`citacoes`). Se a gravação falhar, a resposta falha junto, porque o registro é requisito de auditoria. Com o Jev fora do ar não há registro, porque nada foi decidido. Foi com esses registros que o M8 revisou as faixas e o limiar do produto: `uv run python -m scripts.relatorio_registros` resume o registro (confiança por intenção, faixas, ações, redator, durações, vereditos e sinais) e `--exportar ARQ` grava as perguntas para rotular às cegas. O endpoint não chama o Jev.
+Todo `POST /chat` respondido grava um registro em `copilot.registros_decisao` (migrations [`0004_registros_decisao`](alembic/versions/0004_registros_decisao.py) e [`0005_sinais_e_citacoes`](alembic/versions/0005_sinais_e_citacoes.py)): a pergunta, o entendimento cru do modelo de decisão com as probabilidades, a faixa, a ação, os SKUs, os ids dos trechos que foram ao redator, o redator, a resposta, a duração, os sinais de cada sugestão (`sinais`, um item por SKU sugerido, com `sinais` vazio quando foram calculados sem nenhum sinal e nulo quando o modelo de decisão caiu e eles não foram calculados) e a verificação de cada citação (`citacoes`). Se a gravação falhar, a resposta falha junto, porque o registro é requisito de auditoria. Com o modelo de decisão fora do ar não há registro, porque nada foi decidido. Foi com esses registros que o M8 revisou as faixas e o limiar do produto: `uv run python -m scripts.relatorio_registros` resume o registro (confiança por intenção, faixas, ações, redator, durações, vereditos e sinais) e `--exportar ARQ` grava as perguntas para rotular às cegas. O endpoint não chama o modelo de decisão.
 
 Exemplo de `GET /chat/registros?limite=1` logo depois do `POST /chat` acima (também do M5, sem `sinais` e `citacoes`, que agora vêm como listas), com o mesmo corte nas probabilidades:
 
@@ -581,11 +580,11 @@ Exemplo de `GET /chat/registros?limite=1` logo depois do `POST /chat` acima (tam
 
 ### Sinais do corpus e citações verificadas
 
-Os dois seguem a [ADR-0002](docs/adr/0002-jev-decide-codigo-executa-llm-redige.md): o Jev responde perguntas estreitas e o código decide com limiares medidos contra o Jev real.
+Os dois seguem a [ADR-0008](docs/adr/0008-claude-decide-codigo-executa-llm-redige.md): o Claude responde perguntas estreitas e o código decide com limiares. Os limiares foram medidos contra o Jev, o modelo anterior, e precisam ser medidos de novo contra o Claude.
 
-**Sinais do corpus** (`src/ai/sinais.py`). Para o par (fornecedor sugerido, produto) de uma sugestão de pedido, o código faz uma busca focada no corpus ("<fornecedor> e <produto>: atrasos de entrega, vendas por época do ano e estoque encalhado", 15 trechos, sem conflitos), manda os até 10 trechos `aceito` e `conflitante` ao Jev e pergunta, trecho a trecho, se ele relata atraso desse fornecedor, venda forte do produto (ou da categoria) numa época do ano e encalhe do produto (ou da categoria) numa compra anterior. Cada tipo com algum trecho acima de `LIMIARES_SINAIS` (atraso 0,80, venda por época 0,75, encalhe 0,55, pela regra de calibração do M8 sobre as respostas medidas com `scripts.avaliar_sinais`) vira um sinal com a mensagem feita em código, os ids dos trechos de origem e a maior probabilidade. Sugestão sem fornecedor (quantidade zero) não tem sinal. Os sinais acompanham a sugestão e **nunca alteram a quantidade**. No chat, são calculados uma vez por par (fornecedor, produto), e não por SKU.
+**Sinais do corpus** (`src/ai/sinais.py`). Para o par (fornecedor sugerido, produto) de uma sugestão de pedido, o código faz uma busca focada no corpus ("<fornecedor> e <produto>: atrasos de entrega, vendas por época do ano e estoque encalhado", 15 trechos, sem conflitos), manda os até 10 trechos `aceito` e `conflitante` ao Claude e pergunta, trecho a trecho, se ele relata atraso desse fornecedor, venda forte do produto (ou da categoria) numa época do ano e encalhe do produto (ou da categoria) numa compra anterior. Cada tipo com algum trecho acima de `LIMIARES_SINAIS` (atraso 0,80, venda por época 0,75, encalhe 0,55, pela regra de calibração do M8 sobre as respostas medidas com `scripts.avaliar_sinais`) vira um sinal com a mensagem feita em código, os ids dos trechos de origem e a maior probabilidade. Sugestão sem fornecedor (quantidade zero) não tem sinal. Os sinais acompanham a sugestão e **nunca alteram a quantidade**. No chat, são calculados uma vez por par (fornecedor, produto), e não por SKU.
 
-`GET /skus/TBC-BEGE-70140-01/sugestao-compra/sinais` (Jev real, banco do seed, no M6; com o limiar de atraso de 0,80 do M8, a justificativa do Natal 2024, com 0,86, entra como terceiro trecho de origem):
+`GET /skus/TBC-BEGE-70140-01/sugestao-compra/sinais` (com o Jev, o modelo de decisão anterior, banco do seed, no M6; com o limiar de atraso de 0,80 do M8, a justificativa do Natal 2024, com 0,86, entra como terceiro trecho de origem):
 
 ```json
 [
@@ -601,13 +600,13 @@ Os dois seguem a [ADR-0002](docs/adr/0002-jev-decide-codigo-executa-llm-redige.m
 ]
 ```
 
-**Citações verificadas** (`src/ai/citacoes.py`). Depois que um LLM redige (a resposta do `RedatorSemLLM`, o esclarecimento e o fora de escopo não passam por aqui), o código extrai cada `[id do trecho]` com a frase que o contém. Id que não estava no contexto do redator é `inventada`, sem chamar o Jev. Os demais vão ao Jev com uma `Choice` (o trecho sustenta, contradiz ou não trata da frase), e o código decide: confiança abaixo de `LIMIAR_CITACAO` (0,80, pela regra de calibração do M8 sobre as respostas medidas com `scripts.avaliar_citacoes`; com 0,50, três trechos de outro fornecedor saíam como "diz o contrário") é `incerta`; senão `confirmada`, `contradita` ou `sem_suporte`. Toda citação que não é `confirmada` fica marcada no texto, mantendo o id: `[<id> - não confirmada]` (`sem_suporte` e `incerta`), `[<id> - o trecho diz o contrário]` e `[<id> - trecho inexistente]`. O texto só é marcado, nunca reescrito.
+**Citações verificadas** (`src/ai/citacoes.py`). Depois que um LLM redige (a resposta do `RedatorSemLLM`, o esclarecimento e o fora de escopo não passam por aqui), o código extrai cada `[id do trecho]` com a frase que o contém. Id que não estava no contexto do redator é `inventada`, sem chamar o modelo de decisão. Os demais vão ao Claude com uma pergunta de escolha (o trecho sustenta, contradiz ou não trata da frase), e o código decide: confiança abaixo de `LIMIAR_CITACAO` (0,80, pela regra de calibração do M8 sobre as respostas medidas com `scripts.avaliar_citacoes`; com 0,50, três trechos de outro fornecedor saíam como "diz o contrário") é `incerta`; senão `confirmada`, `contradita` ou `sem_suporte`. Toda citação que não é `confirmada` fica marcada no texto, mantendo o id: `[<id> - não confirmada]` (`sem_suporte` e `incerta`), `[<id> - o trecho diz o contrário]` e `[<id> - trecho inexistente]`. O texto só é marcado, nunca reescrito.
 
 Só conta como citação o colchete com formato de id de trecho (`<caminho>.md#<slug>`). Colchetes como `[SKU/TBC-BEGE-70140-01]`, `[JDCP-BRAN-QUEEN-02]` e `[Política de compra ativa (v1)]` ficariam sem marca. O redator os escrevia até o M7 (15 na rodada de base do M8); com as instruções do M8, nenhum nas rodadas medidas.
 
-**Queda do Jev** nos sinais ou na verificação não derruba o chat, porque a pergunta já foi entendida. Nos sinais, que são calculados antes da redação, as sugestões saem com `sinais` nulo e o contexto do redator ganha a observação "Não foi possível calcular os sinais do corpus agora (o modelo de decisão está indisponível), então as sugestões vêm sem eles.". Na verificação, que roda depois da redação, as citações do contexto ficam `incerta` (marcadas como não confirmadas) e o código acrescenta ao fim da resposta "Observação: não consegui verificar as citações agora, então elas vêm marcadas como não confirmadas."
+**Queda do modelo de decisão** nos sinais ou na verificação não derruba o chat, porque a pergunta já foi entendida. Nos sinais, que são calculados antes da redação, as sugestões saem com `sinais` nulo e o contexto do redator ganha a observação "Não foi possível calcular os sinais do corpus agora (o modelo de decisão está indisponível), então as sugestões vêm sem eles.". Na verificação, que roda depois da redação, as citações do contexto ficam `incerta` (marcadas como não confirmadas) e o código acrescenta ao fim da resposta "Observação: não consegui verificar as citações agora, então elas vêm marcadas como não confirmadas."
 
-Exemplo real de `POST /chat` com `{"pergunta": "Quanto devo comprar do TBC-BEGE-70140-01?"}` (Jev e Groq reais, 8,1 s; a Groq foi o redator até o M8 e saiu depois), sem `entendimento` (`sugestao_compra` com 0,95), `identificacao`, `trechos`, `conflitos` e `registro_id`, e com a `sugestao` reduzida a `sku_code` e `quantidade` (o resto é igual ao de `/sugestao-compra`):
+Exemplo real de `POST /chat` com `{"pergunta": "Quanto devo comprar do TBC-BEGE-70140-01?"}` (Jev, o modelo de decisão anterior, e Groq reais, 8,1 s; a Groq foi o redator até o M8 e saiu depois), sem `entendimento` (`sugestao_compra` com 0,95), `identificacao`, `trechos`, `conflitos` e `registro_id`, e com a `sugestao` reduzida a `sku_code` e `quantidade` (o resto é igual ao de `/sugestao-compra`):
 
 ```json
 {
@@ -657,14 +656,16 @@ A mesma pergunta no fim do M8, com as instruções novas e o redator Claude (pas
 
 ### Limites conhecidos do chat
 
-Cada milestone do chat foi fechado rodando as perguntas de `evals/casos.json` (20 casos) e de `evals/casos_redator.json` (4 perguntas de sugestão e situação por código, que exercitam os sinais) pelo chat inteiro, com o Jev e o redator reais. Cada pergunta grava um registro de decisão:
+Cada milestone do chat foi fechado rodando as perguntas de `evals/casos.json` (20 casos) e de `evals/casos_redator.json` (4 perguntas de sugestão e situação por código, que exercitam os sinais) pelo chat inteiro, com o modelo de decisão e o redator reais. Cada pergunta grava um registro de decisão:
 
 ```bash
 uv run python -m scripts.rodar_casos_chat --respostas --pausa 60
 uv run python -m scripts.rodar_casos_chat --respostas --pausa 60 --casos evals/casos_redator.json
 ```
 
-O script conta, por caso e no total, o que dá para medir sem ler a resposta: colchetes sem id de trecho, sinais do corpus com algum trecho de origem citado e sugestões com a quantidade escrita no texto. Os resultados estão nos comentários dos tickets de fechamento: M5 em [`.scratch/chat/issues/05-readme-e-smoke.md`](.scratch/chat/issues/05-readme-e-smoke.md), M6 em [`.scratch/sinais-e-citacoes/issues/03-chat-com-sinais-e-citacoes.md`](.scratch/sinais-e-citacoes/issues/03-chat-com-sinais-e-citacoes.md) e M8 em [`.scratch/refinamentos/issues/02-prompt-do-redator.md`](.scratch/refinamentos/issues/02-prompt-do-redator.md) (antes e depois do prompt) e [`06-readme-screenshots-e-demo.md`](.scratch/refinamentos/issues/06-readme-screenshots-e-demo.md) (rodada final).
+O script conta, por caso e no total, o que dá para medir sem ler a resposta: colchetes sem id de trecho, sinais do corpus com algum trecho de origem citado e sugestões com a quantidade escrita no texto.
+
+As medições abaixo são do M8, com o Jev como modelo de decisão. Com o Claude ([ADR-0008](docs/adr/0008-claude-decide-codigo-executa-llm-redige.md)), elas precisam ser refeitas.
 
 **O que o M8 resolveu:**
 
@@ -676,12 +677,12 @@ O script conta, por caso e no total, o que dá para medir sem ler a resposta: co
 
 **O que continua:**
 
-- **Conflito canônico perdido.** O limiar de 0,40 não deixa passar nenhum falso conflito, mas perde 4 dos 7 conflitos rotulados, inclusive o exemplo do `CONTEXT.md`: a cláusula 3 do contrato da Katrina (45 dias) contra a revisão Q1/2025 (62 dias observados) fica em 0,12. O Jev só passa do limiar quando um trecho afirma que o prazo é cumprido; o contrato contra o observado parece ser lido como promessa, e não como fato. Os dois trechos continuam indo ao redator, e o atraso da Katrina continua aparecendo pelo sinal de atraso da sugestão; só a seção de conflitos não os liga.
-- **Citações de sinais de encalhe não se confirmam.** A mensagem do sinal generaliza para a categoria ("encalhe de Colcha Bouti ou da categoria dele numa compra anterior") e o trecho fala do jogo Veraneio, então o Jev não confirma a frase e a citação sai "não confirmada" em todas as rodadas. É da mensagem do sinal, não do prompt.
+- **Conflito canônico perdido.** O limiar de 0,40 não deixa passar nenhum falso conflito, mas perde 4 dos 7 conflitos rotulados, inclusive o exemplo do `CONTEXT.md`: a cláusula 3 do contrato da Katrina (45 dias) contra a revisão Q1/2025 (62 dias observados) fica em 0,12. O Jev só passava do limiar quando um trecho afirma que o prazo é cumprido; o contrato contra o observado parece ser lido como promessa, e não como fato. Os dois trechos continuam indo ao redator, e o atraso da Katrina continua aparecendo pelo sinal de atraso da sugestão; só a seção de conflitos não os liga.
+- **Citações de sinais de encalhe não se confirmam.** A mensagem do sinal generaliza para a categoria ("encalhe de Colcha Bouti ou da categoria dele numa compra anterior") e o trecho fala do jogo Veraneio, então o Jev não confirmava a frase e a citação sai "não confirmada" em todas as rodadas. É da mensagem do sinal, não do prompt.
 - **O redator ainda escorrega em contas e citações.** Na rodada final, com a Groq: o c06 diz que 2,3 meses ficam "dentro do teto de 3 meses" e põe trechos da reunião do Natal em frases da sugestão, que a verificação marca como "o trecho diz o contrário"; e, nas perguntas de situação de SKU, que não têm trecho no contexto, o redator cita a ficha com o formato do exemplo das instruções (`[pasta/fichas.md#tbc-bege-70140-01]`), que a verificação marca como "trecho inexistente" (8 no c01 e 4 no p04). Com o Sonnet, a citação da ficha não se repetiu; as conclusões próprias do c06 não foram conferidas, porque as contagens não leem o texto. O texto só é marcado, nunca reescrito.
 - **Alarme falso na verificação.** A afirmação é a frase inteira: frase com uma conclusão do redator sai `incerta` mesmo com o trecho certo. Com o limiar de citação em 0,80, há mais "não confirmada" do que antes (2 `incerta` em 26 citações dos casos na rodada final).
 - **Faixa média quase some, e as faixas não foram recalibradas.** Com os critérios novos, 44 das 45 perguntas rotuladas saem com confiança alta e nenhuma intenção sai errada, então a regra não tem negativos: as faixas (0,80 e 0,50) e o `LIMIAR_PRODUTO` (0,60) ficam por amostra insuficiente. Não há como saber se uma intenção errada também viria com confiança alta.
-- **Poucos SKUs identificados pelo nome.** Quando o Jev escolhe o produto com confiança abaixo de 0,60, ou não acha o produto (a toalha de rosto 45x70 não existe no catálogo), a pergunta de situação pede o código do SKU e a de sugestão de compra responde só com o corpus e a política, sem quantidade. Na rodada final, 3 das 5 perguntas de situação pediram o código e 4 das 5 de sugestão ficaram sem SKU.
+- **Poucos SKUs identificados pelo nome.** Quando o modelo de decisão escolhe o produto com confiança abaixo de 0,60, ou não acha o produto (a toalha de rosto 45x70 não existe no catálogo), a pergunta de situação pede o código do SKU e a de sugestão de compra responde só com o corpus e a política, sem quantidade. Na rodada final, 3 das 5 perguntas de situação pediram o código e 4 das 5 de sugestão ficaram sem SKU.
 
 ### Fluxo do comprador: painel, aviso e decisão de compra
 
@@ -701,7 +702,7 @@ sequenceDiagram
     M->>P: copilot.avisos
     C->>A: GET /painel
     A->>M: painel
-    M->>U: sugerir_pedidos(retrato do ERP em lote, determinístico, sem Jev)
+    M->>U: sugerir_pedidos(retrato do ERP em lote, determinístico, sem modelo de decisão)
     M-->>C: alertas por grupo, entregas atrasadas por fornecedor e decididos
     C->>A: tela do SKU: análise, sugestão, sinais, preços, vendas, avisos e decisões
     C->>A: POST /chat com o sku_code da tela
@@ -711,7 +712,7 @@ sequenceDiagram
     M->>P: copilot.decisoes_compra
 ```
 
-**Painel de alertas** (`GET /painel`, a tela inicial do comprador). Calculado na hora, sem estado próprio, com a política ativa, sobre um retrato do ERP lido em lote (`FichaSKU.retrato()`: estoques, giros, vendas diárias, fornecedores e itens em trânsito de todos os SKUs ativos, uma consulta cada). Os **motivos de alerta** de um SKU são os alertas da sugestão que estão nos `motivos_de_alerta` da política, mais `abaixo_do_piso_alerta` (a **ruptura**: cobertura em dias abaixo do `piso_alerta_dias`), `entrega_atrasada` (pedido de compra com a data prevista vencida e sem cobrança vigente) e `estoque_divergente` (o repositor não achou no depósito o que o ERP diz que tem). Os três são o padrão; o comprador muda na pergunta 10 da tela de política. O SKU entra no painel se tem aviso aberto ou algum motivo, num grupo, nesta ordem: pedidos da equipe de vendas, estoque divergente, entregas atrasadas, em ruptura, vão faltar antes da compra chegar (só com o lead time ligado) e outros alertas. Em cada grupo, o disponível zero vem primeiro, depois a menor cobertura em dias. `entregas_atrasadas` traz os mesmos pedidos agrupados por fornecedor, o fornecedor com SKU em ruptura primeiro, para o comprador ligar uma vez e cobrar tudo. `parou_de_vender` marca o SKU em queda de venda sem estoque. A busca e os filtros (`busca`, `categoria`, `motivo`, `fornecedor`) filtram o mesmo retrato. Um SKU sem a linha de estoque no ERP vai para `skus_com_erro` em vez de derrubar o painel. O painel faz 13 consultas fixas, conferidas por um listener do SQLAlchemy em `src/api/tests/test_painel_em_escala.py`: com o seed (85 SKUs) responde em uns 0,05 s e traz 10 SKUs em ruptura, um deles com entrega atrasada; com 5.085 SKUs (`scripts.seed --skus 5000`), a mediana do `scripts.benchmark_painel` foi 1,22 s. O painel não chama o Jev.
+**Painel de alertas** (`GET /painel`, a tela inicial do comprador). Calculado na hora, sem estado próprio, com a política ativa, sobre um retrato do ERP lido em lote (`FichaSKU.retrato()`: estoques, giros, vendas diárias, fornecedores e itens em trânsito de todos os SKUs ativos, uma consulta cada). Os **motivos de alerta** de um SKU são os alertas da sugestão que estão nos `motivos_de_alerta` da política, mais `abaixo_do_piso_alerta` (a **ruptura**: cobertura em dias abaixo do `piso_alerta_dias`), `entrega_atrasada` (pedido de compra com a data prevista vencida e sem cobrança vigente) e `estoque_divergente` (o repositor não achou no depósito o que o ERP diz que tem). Os três são o padrão; o comprador muda na pergunta 10 da tela de política. O SKU entra no painel se tem aviso aberto ou algum motivo, num grupo, nesta ordem: pedidos da equipe de vendas, estoque divergente, entregas atrasadas, em ruptura, vão faltar antes da compra chegar (só com o lead time ligado) e outros alertas. Em cada grupo, o disponível zero vem primeiro, depois a menor cobertura em dias. `entregas_atrasadas` traz os mesmos pedidos agrupados por fornecedor, o fornecedor com SKU em ruptura primeiro, para o comprador ligar uma vez e cobrar tudo. `parou_de_vender` marca o SKU em queda de venda sem estoque. A busca e os filtros (`busca`, `categoria`, `motivo`, `fornecedor`) filtram o mesmo retrato. Um SKU sem a linha de estoque no ERP vai para `skus_com_erro` em vez de derrubar o painel. O painel faz 13 consultas fixas, conferidas por um listener do SQLAlchemy em `src/api/tests/test_painel_em_escala.py`: com o seed (85 SKUs) responde em uns 0,05 s e traz 10 SKUs em ruptura, um deles com entrega atrasada; com 5.085 SKUs (`scripts.seed --skus 5000`), a mediana do `scripts.benchmark_painel` foi 1,22 s. O painel não chama o modelo de decisão.
 
 ```json
 {
@@ -786,11 +787,11 @@ Recortado: são três fornecedores (Aurora, Katrina a R$ 89,49 e Verdela) e nove
 
 O seed tem só 15 pedidos de compra, então muitos SKUs não têm histórico. O preço pago nos pedidos antigos do seed fica 1% abaixo do atual por mês de idade, para o histórico ter o que mostrar.
 
-**Chat em contexto** (`POST /chat` com `sku_code`). Na tela do SKU, o chat lateral manda o SKU da tela. Para as intenções `situacao_sku` e `sugestao_compra`, se a pergunta não leva a nenhum SKU (nem por código, nem pelo produto que o Jev escolheu), vale o SKU da tela, com a origem `contexto` na identificação: "por que está acabando?" funciona sem repetir o produto. Pergunta que cita outro produto responde sobre o citado; as outras intenções ignoram o contexto. A intenção continua com o Jev e a regra é do código ([ADR-0002](docs/adr/0002-jev-decide-codigo-executa-llm-redige.md)). O registro de decisão grava o `sku_em_contexto` (migration [`0012_sku_em_contexto`](alembic/versions/0012_sku_em_contexto.py)).
+**Chat em contexto** (`POST /chat` com `sku_code`). Na tela do SKU, o chat lateral manda o SKU da tela. Para as intenções `situacao_sku` e `sugestao_compra`, se a pergunta não leva a nenhum SKU (nem por código, nem pelo produto que o Claude escolheu), vale o SKU da tela, com a origem `contexto` na identificação: "por que está acabando?" funciona sem repetir o produto. Pergunta que cita outro produto responde sobre o citado; as outras intenções ignoram o contexto. A intenção continua com o modelo de decisão e a regra é do código ([ADR-0008](docs/adr/0008-claude-decide-codigo-executa-llm-redige.md)). O registro de decisão grava o `sku_em_contexto` (migration [`0012_sku_em_contexto`](alembic/versions/0012_sku_em_contexto.py)).
 
 ### Operação da loja: repositor e vendedora
 
-O módulo `reposicao` é dono das verificações de gôndola, dos setores, dos avisos de gôndola vazia e das capacidades da gôndola (`copilot.verificacoes_gondola`, `copilot.setores`, `copilot.setores_sku`, `copilot.avisos_gondola` e `copilot.capacidades_gondola`, migrations `0020` a `0023`). Tudo é conta em código, sem Jev.
+O módulo `reposicao` é dono das verificações de gôndola, dos setores, dos avisos de gôndola vazia e das capacidades da gôndola (`copilot.verificacoes_gondola`, `copilot.setores`, `copilot.setores_sku`, `copilot.avisos_gondola` e `copilot.capacidades_gondola`, migrations `0020` a `0023`). Tudo é conta em código, sem modelo de decisão.
 
 **Queda de venda** (`GET /reposicao/painel`). Dia aberto é o dia em que a loja vendeu alguma coisa (domingo fechado some da conta, sem calendário). A janela são os últimos `dias_observados_queda` dias abertos antes de hoje (padrão 2); a venda diária base é a média dos 28 dias abertos anteriores (`DIAS_ABERTOS_DA_BASE`). O SKU que vende ao menos `venda_diaria_minima_queda` por dia (padrão 1) entra quando a chance de vender tão pouco na janela, pela Poisson da base, fica abaixo de `limiar_queda` (padrão 1%). Os três são parâmetros da política (pergunta 11, "a validar com o comprador"). Com estoque, a suspeita é a gôndola, e o SKU vai para o painel do repositor; sem estoque, ele já está em ruptura ou entrega atrasada no painel do comprador, com o selo "Parou de vender". No seed, o tapete marrom (`TAP-MARR-4060-01`) vendia 10,3 por dia e vendeu 5 e 0 nos dois últimos dias abertos, com 392 no estoque.
 
@@ -872,7 +873,7 @@ src/
 ├── ficha_sku/        compõe a ficha completa de um SKU (usada por /analise)
 ├── politica_compra/  política de compra versionada (schema copilot)
 ├── purchasing/       sugestão de pedido (quanto, de quem, memória de cálculo, alertas) e referências de preço (histórico pago, preço atual, substitutos)
-├── ai/               corpus, ingestão no pgvector, busca com o filtro do Jev, sinais do corpus, verificação de citações, chat (entendimento, identificação dos SKUs, roteamento, contexto, redator Claude, registro de decisão)
+├── ai/               corpus, ingestão no pgvector, busca com o filtro do Claude, sinais do corpus, verificação de citações, chat (entendimento, identificação dos SKUs, roteamento, contexto, redator Claude, registro de decisão)
 ├── painel/           painel de alertas, tela de Estoque, consulta da vendedora, avisos da equipe de vendas, decisões de compra e cobranças de entrega (copilot.avisos, copilot.decisoes_compra e copilot.cobrancas_entrega)
 ├── reposicao/        queda de venda, painel do repositor, verificações de gôndola, setores, avisos de gôndola vazia e mix de gôndola
 ├── notificacoes/     episódios de alerta, varredura e caixa de notificações de cada usuário (copilot.episodios_alerta)
@@ -882,9 +883,9 @@ src/
 ├── db/               config, engine, health-check
 └── main.py           bootstrap FastAPI
 
-scripts/              seed.py, criar_admin.py, capturar_tela.py, benchmark_painel.py, ingerir_corpus.py, spike_jev.py, avaliar_recuperacao.py, avaliar_entendimento.py, avaliar_sinais.py, avaliar_citacoes.py, avaliar_conflitos.py, calibracao.py (regra de calibração dos limiares), relatorio_registros.py, rodar_casos_chat.py, jev_check.py, dependencias.py, db-init (extensões Postgres)
+scripts/              seed.py, criar_admin.py, capturar_tela.py, benchmark_painel.py, ingerir_corpus.py, avaliar_recuperacao.py, avaliar_entendimento.py, avaliar_sinais.py, avaliar_citacoes.py, avaliar_conflitos.py, calibracao.py (regra de calibração dos limiares), relatorio_registros.py, rodar_casos_chat.py, dependencias.py, db-init (extensões Postgres)
 corpus/               documentos do RAG (markdown com frontmatter)
-evals/                casos rotulados (perguntas, intenções, trechos, sinais, citações, pares de conflito) e respostas cruas do Jev em evals/resultados/
+evals/                casos rotulados (perguntas, intenções, trechos, sinais, citações, pares de conflito) e respostas cruas do modelo de decisão em evals/resultados/ (as gravadas até 2026-10 são do Jev, o modelo anterior)
 alembic/              migrations versionadas
 tests/                fakes.py + testes cross-módulo + tests/smoke/ end-to-end
 ```
@@ -916,7 +917,6 @@ flowchart TD
     inventory --> erp_adapter
     sales --> erp_adapter
 
-    ai --> Jev[("Jev (TypeSafe)")]
     ai --> Claude[("Claude (Anthropic)")]
     erp_adapter --> Postgres[("Postgres + pgvector<br/>schemas erp e copilot")]
     politica_compra --> Postgres
@@ -927,7 +927,7 @@ flowchart TD
     ai --> Postgres
 
     classDef externo fill:#eef,stroke:#88a
-    class Jev,Claude,Postgres externo
+    class Claude,Postgres externo
 ```
 
 O grafo mostra só as arestas principais. As chamadas diretas de `api`, `painel`, `ai` e `purchasing` para os módulos de baixo estão na lista:
@@ -939,7 +939,7 @@ O grafo mostra só as arestas principais. As chamadas diretas de `api`, `painel`
 - `usuarios` não depende de nenhum módulo de domínio.
 - `purchasing` depende de `catalog`, `ficha_sku`, `inventory`, `sales` e `politica_compra`. Do `erp_adapter`, só lê os pedidos de compra (`itens_de_pedido_de`, para o histórico de preço), que não têm módulo de leitura próprio. O Copilot não escreve no ERP.
 - `politica_compra` fala direto com o schema `copilot` do Postgres. Não passa pelo `erp_adapter`, porque a política é dado do Copilot, não do ERP.
-- `ai` fala direto com `copilot.trechos_corpus` (pgvector), atrás do port `TrechosRepositorio`, com `copilot.registros_decisao`, atrás do port `RegistrosDecisao`, com a API da TypeSafe, atrás do port `DecisionModel`, e com a Anthropic (Claude), atrás do port `Redator`. No chat, só lê dos outros módulos: `catalog` (lista de SKUs), `ficha_sku` (ficha completa), `purchasing` (só `sugerir_pedido`) e `politica_compra` (política ativa). Nada no `ai` escreve no ERP.
+- `ai` fala direto com `copilot.trechos_corpus` (pgvector), atrás do port `TrechosRepositorio`, com `copilot.registros_decisao`, atrás do port `RegistrosDecisao`, com a Anthropic (Claude), atrás dos ports `DecisionModel` e `Redator`. No chat, só lê dos outros módulos: `catalog` (lista de SKUs), `ficha_sku` (ficha completa), `purchasing` (só `sugerir_pedido`) e `politica_compra` (política ativa). Nada no `ai` escreve no ERP.
 - `ficha_sku` depende de `catalog`, `inventory`, `sales` e não fala com o `erp_adapter` direto.
 - `inventory` depende de `sales` (cobertura precisa de giro).
 - `catalog`, `inventory`, `sales` e `purchasing` dependem de `erp_adapter`.

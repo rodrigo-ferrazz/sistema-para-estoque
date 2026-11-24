@@ -1,10 +1,10 @@
-"""Identificação dos SKUs de uma pergunta do chat, a partir do entendimento do Jev.
+"""Identificação dos SKUs de uma pergunta do chat, a partir do entendimento do Claude.
 
 O código de SKU escrito na pergunta ganha sempre. Sem código, o produto escolhido
-pelo Jev, com confiança de pelo menos `LIMIAR_PRODUTO`, vira a lista dos SKUs
+pelo Claude, com confiança de pelo menos `LIMIAR_PRODUTO`, vira a lista dos SKUs
 dele, estreitada pelas cores e pelos tamanhos citados. Quando a pergunta não leva a
 nenhum SKU e o comprador pergunta da tela de um SKU, o chat usa esse SKU
-(`do_contexto`): a regra é do código, não do Jev.
+(`do_contexto`): a regra é do código, não do Claude.
 """
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ from uuid import UUID
 from src.ai.schemas import NENHUM_PRODUTO, Entendimento, Identificacao, OrigemIdentificacao, ProdutoCatalogo
 from src.catalog.schemas import SKU
 
-# Mantido no M8 pela regra de calibração com erro crítico (produto errado usado): um só
-# erro (c08, a colcha nova da Verdela, com 0,47) dá `amostra_insuficiente`
-# (`.scratch/refinamentos/issues/03-calibracao-do-entendimento.md`).
+# Regra de calibração com erro crítico (produto errado usado), por
+# `scripts/avaliar_entendimento.py`. A recalibrar com o Claude (ADR-0008): o valor vem do
+# modelo anterior.
 LIMIAR_PRODUTO = 0.60
 MAX_SKUS_POR_RESPOSTA = 12
 PROBABILIDADE_MINIMA_CANDIDATO = 0.15

@@ -10,4 +10,4 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 
 ### IA (módulo `ai`)
 
-Segue a ADR-0002: Jev decide, código executa, LLM redige. Antes de mexer em `ai`, ler `docs/adr/0002-jev-decide-codigo-executa-llm-redige.md`. Referência da API do Jev: https://docs.typesafe.ai/llms.txt (limites conhecidos em `model-jaggedness/jev-1.13.md`).
+Segue a ADR-0008: Claude decide, código executa, LLM redige. Antes de mexer em `ai`, ler `docs/adr/0008-claude-decide-codigo-executa-llm-redige.md`. O modelo de decisão é o `ClaudeDecisionModel` (`src/ai/claude_decisao.py`); os limiares só mudam medidos com os scripts `scripts/avaliar_*.py`.

@@ -135,7 +135,7 @@ SKU ativo de outro produto, da mesma categoria e tamanho, que o comprador chefe 
 _Avoid_: concorrente (o comprador usa, mas é ambíguo com outro atacadista), similar, equivalente.
 
 **Sinal (do corpus)**:
-O que os documentos do corpus relatam sobre o fornecedor e o produto de uma sugestão de pedido: atraso do fornecedor, venda forte do produto numa época do ano ou encalhe do produto (ou da categoria dele) numa compra anterior. O Jev responde trecho a trecho e o código transforma em sinal o que passa do limiar, com os trechos de origem. Acompanha a sugestão e nunca altera a quantidade.
+O que os documentos do corpus relatam sobre o fornecedor e o produto de uma sugestão de pedido: atraso do fornecedor, venda forte do produto numa época do ano ou encalhe do produto (ou da categoria dele) numa compra anterior. O modelo de decisão responde trecho a trecho e o código transforma em sinal o que passa do limiar, com os trechos de origem. Acompanha a sugestão e nunca altera a quantidade.
 _Avoid_: alerta (é o que o `purchasing` calcula a partir do ERP), insight, risco.
 
 **Onboarding**:
@@ -245,37 +245,37 @@ Conjunto de documentos sintéticos (contratos, notas de reunião, relatórios de
 _Avoid_: base de conhecimento, docs, arquivos.
 
 **Trecho**:
-Pedaço de um documento do corpus, uma seção de markdown (`##` ou `###`), com id estável no formato `<documento>#<slug-dos-titulos>`. É a unidade que o RAG indexa, busca e manda ao Jev.
+Pedaço de um documento do corpus, uma seção de markdown (`##` ou `###`), com id estável no formato `<documento>#<slug-dos-titulos>`. É a unidade que o RAG indexa, busca e manda ao modelo de decisão.
 _Avoid_: chunk (só em código técnico quando for o nome do algoritmo), passagem, fragmento.
 
 **Classificação (de trecho)**:
-Rótulo que o código dá a um trecho recuperado a partir das respostas do Jev: `aceito` (evidência utilizável), `conflitante` (contradiz uma premissa da pergunta) ou `descartado` (irrelevante, sem evidência ou tentando dar instrução ao modelo). Quem classifica é o código, com limiares. O Jev só responde as perguntas.
+Rótulo que o código dá a um trecho recuperado a partir das respostas do modelo de decisão: `aceito` (evidência utilizável), `conflitante` (contradiz uma premissa da pergunta) ou `descartado` (irrelevante, sem evidência ou tentando dar instrução ao modelo). Quem classifica é o código, com limiares. O modelo de decisão só responde as perguntas.
 _Avoid_: filtro, score, ranking.
 
 **Conflito entre trechos**:
 Dois trechos de documentos diferentes que afirmam coisas incompatíveis sobre o mesmo fato. Ex: lead time contratado da Katrina (45 dias) contra o observado na revisão Q1/2025 (62 dias). O Copilot sinaliza o conflito e não escolhe um lado.
 _Avoid_: contradição (sozinho é ambíguo com premissa da pergunta), divergência.
 
-**Jev**:
-Modelo System One da TypeSafe que toma as decisões semânticas do Copilot: intenção da pergunta, relevância de trecho do corpus, sinais qualitativos sobre fornecedor. Responde perguntas tipadas (`Choice`, `Score`, `Noul`) com confiança. Nunca faz conta, contagem ou comparação de data. Ver ADR-0002.
-_Avoid_: LLM, classificador, agente.
+**Modelo de decisão**:
+O papel do Claude que toma as decisões semânticas do Copilot: intenção da pergunta, produto citado, relevância de trecho do corpus, conflito entre trechos, sinais qualitativos sobre fornecedor e produto, e verificação de citações. Responde perguntas fechadas com saída estruturada: probabilidades entre as opções (escolha) ou a probabilidade do sim (sim ou não). Nunca faz conta, contagem ou comparação de data. Até 2026-11 era o Jev (TypeSafe). Ver ADR-0008.
+_Avoid_: classificador, agente, Jev (o modelo anterior).
 
 **Redator**:
-O papel do LLM no Copilot: só escreve a resposta final em linguagem natural a partir de dados já montados pelo código. Não escolhe tools nem decide nada. Ver ADR-0002.
+O papel do LLM no Copilot: só escreve a resposta final em linguagem natural a partir de dados já montados pelo código. Não escolhe tools nem decide nada. Ver ADR-0008.
 _Avoid_: agente, chatbot, LLM com tools.
 
 **Confiança**:
-Número de 0 a 1 que o Jev devolve junto de cada resposta, derivado da distribuição de probabilidades. O código usa faixas de confiança pra decidir entre executar, pedir confirmação ou pedir esclarecimento. Nunca substitui a decisão de compra do comprador chefe.
+Número de 0 a 1 que acompanha cada escolha do modelo de decisão: a probabilidade da opção escolhida. O código usa faixas de confiança pra decidir entre executar, pedir confirmação ou pedir esclarecimento. Nunca substitui a decisão de compra do comprador chefe.
 _Avoid_: certeza, probabilidade (é outra coisa), score.
 
 ### Chat
 
 **Intenção**:
-O que o comprador chefe quer com uma pergunta do chat, uma de cinco: situação do SKU, sugestão de compra, política ou fornecedor, alertas e avisos (o painel de alertas e os avisos da equipe de vendas), fora de escopo. Quem escolhe é o Jev, com uma `Choice`; quem decide o que fazer com ela é o código.
+O que o comprador chefe quer com uma pergunta do chat, uma de cinco: situação do SKU, sugestão de compra, política ou fornecedor, alertas e avisos (o painel de alertas e os avisos da equipe de vendas), fora de escopo. Quem escolhe é o modelo de decisão, com uma pergunta de escolha; quem decide o que fazer com ela é o código.
 _Avoid_: tipo de pergunta, categoria, comando.
 
 **Entendimento (da pergunta)**:
-As respostas do Jev sobre uma pergunta do chat: a intenção e o produto do catálogo citado, cada uma com probabilidades e confiança.
+As respostas do modelo de decisão sobre uma pergunta do chat: a intenção e o produto do catálogo citado, cada uma com probabilidades e confiança.
 _Avoid_: interpretação, parse, classificação (é o nome do rótulo de trecho).
 
 **Faixa de confiança**:
@@ -291,5 +291,5 @@ O que fica gravado de cada pergunta respondida pelo chat: a pergunta, o entendim
 _Avoid_: log (genérico demais), histórico de conversa (não há sessão).
 
 **Citação**:
-Referência `[<id do trecho>]` que o redator escreve junto de uma frase da resposta. O código extrai cada citação com a frase que a contém e dá um veredito: `confirmada` (o trecho sustenta a frase), `sem_suporte` (o trecho não trata dela), `contradita` (o trecho diz o contrário), `inventada` (o id não estava no contexto do redator, sem consultar o Jev) ou `incerta` (confiança do Jev abaixo do limiar, ou Jev não consultado). Toda citação que não é `confirmada` fica marcada no texto da resposta.
+Referência `[<id do trecho>]` que o redator escreve junto de uma frase da resposta. O código extrai cada citação com a frase que a contém e dá um veredito: `confirmada` (o trecho sustenta a frase), `sem_suporte` (o trecho não trata dela), `contradita` (o trecho diz o contrário), `inventada` (o id não estava no contexto do redator, sem consultar o modelo de decisão) ou `incerta` (confiança do modelo de decisão abaixo do limiar, ou modelo não consultado). Toda citação que não é `confirmada` fica marcada no texto da resposta.
 _Avoid_: referência, fonte (é o trecho, não a citação), link.

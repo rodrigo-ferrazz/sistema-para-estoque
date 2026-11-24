@@ -1,4 +1,4 @@
-"""Busca no corpus com o filtro do Jev (ADR-0002): o Jev responde, o código classifica."""
+"""Busca no corpus com o filtro do Claude (ADR-0008): o Claude responde, o código classifica."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,10 +23,9 @@ MAX_TRECHOS_CONFLITO = 6
 
 @dataclass(frozen=True)
 class Limiares:
-    """Calibrados no spike com o jev-1.13.0 e as perguntas em PT (`.scratch/rag-jev/spike-resultado.md`),
-    menos o `conflito`, que saiu da regra de calibração do M8 (`mais_acertos`, 24/28) com a
-    pergunta de critérios estruturados, medida por `scripts/avaliar_conflitos.py` em
-    `evals/pares_conflito.json` (`.scratch/refinamentos/issues/05-conflito-entre-trechos.md`)."""
+    """A recalibrar com o Claude (ADR-0008) pela regra do M8 (`scripts/calibracao.py`):
+    `conflito` por `scripts/avaliar_conflitos.py` em `evals/pares_conflito.json`. Os valores
+    vêm do modelo anterior (spike em `.scratch/rag-jev/spike-resultado.md`)."""
 
     injecao: float
     contradiz_premissa: float

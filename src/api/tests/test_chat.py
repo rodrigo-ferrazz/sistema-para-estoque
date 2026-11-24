@@ -1,5 +1,5 @@
 """Testes HTTP de `POST /chat` e `GET /chat/registros` com ERP, política, busca,
-Jev, redator e registros em memória."""
+Claude, redator e registros em memória."""
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -61,7 +61,7 @@ def client() -> Iterator[TestClient]:
 def preparar(
     decisao: InMemoryDecisionModel | None = None, redator: RedatorGravador | None = None
 ) -> InMemoryRegistrosDecisao:
-    """Sem `decisao`, o Jev fica o de verdade, que falha sem `JEV_KEY`. O redator
+    """Sem `decisao`, o Claude fica o de verdade, que falha sem `ANTHROPIC_API_KEY`. O redator
     e os registros são sempre trocados, para nenhum teste chamar o LLM nem gravar
     no banco."""
     embedder = FakeEmbedder()
@@ -96,18 +96,18 @@ def preparar(
     return registros
 
 
-def jev(entendimento: Entendimento, **kwargs: object) -> InMemoryDecisionModel:
-    return InMemoryDecisionModel(entendimento_padrao=entendimento, modelo="jev-1.13.0", **kwargs)
+def decisao_falsa(entendimento: Entendimento, **kwargs: object) -> InMemoryDecisionModel:
+    return InMemoryDecisionModel(entendimento_padrao=entendimento, modelo="claude-opus-5-5", **kwargs)
 
 
 def test_chat_responde_a_situacao_do_sku(client: TestClient) -> None:
     registros = preparar(
-        jev(
+        decisao_falsa(
             make_entendimento(
                 "situacao_sku",
                 0.93,
                 probabilidades_intencao={"situacao_sku": 0.93, "sugestao_compra": 0.07},
-                modelo="jev-1.13.0",
+                modelo="claude-opus-5-5",
             )
         ),
         RedatorGravador("A TBC-BEGE-70140-01 tem 40 unidades."),
@@ -132,7 +132,7 @@ def test_chat_responde_a_situacao_do_sku(client: TestClient) -> None:
                 "probabilidades": {"situacao_sku": 0.93, "sugestao_compra": 0.07},
             },
             "produto": {"escolha": "nenhum", "confianca": 0.95, "probabilidades": {"nenhum": 0.95}},
-            "modelo": "jev-1.13.0",
+            "modelo": "claude-opus-5-5",
         },
         "identificacao": {
             "skus": ["TBC-BEGE-70140-01"],
@@ -153,7 +153,7 @@ def test_chat_responde_a_situacao_do_sku(client: TestClient) -> None:
 
 def test_chat_devolve_os_trechos_e_os_conflitos_que_foram_ao_redator(client: TestClient) -> None:
     preparar(
-        jev(
+        decisao_falsa(
             make_entendimento("politica_ou_fornecedor", 0.9),
             padrao={"relevante": 0.9, "tem_evidencia": 0.9},
             conflitos={("contratos/katrina.md#prazos", "reunioes/q1.md#katrina"): 0.62},
@@ -174,7 +174,7 @@ def test_chat_devolve_os_trechos_e_os_conflitos_que_foram_ao_redator(client: Tes
 
 def test_esclarecimento_vem_sem_redator(client: TestClient) -> None:
     redator = RedatorGravador()
-    preparar(jev(make_entendimento("situacao_sku", 0.3)), redator)
+    preparar(decisao_falsa(make_entendimento("situacao_sku", 0.3)), redator)
 
     response = client.post("/chat", json={"pergunta": "hmm"})
 
@@ -194,19 +194,19 @@ def test_esclarecimento_vem_sem_redator(client: TestClient) -> None:
     ],
 )
 def test_pergunta_fora_do_intervalo_da_422(client: TestClient, corpo: dict[str, str]) -> None:
-    preparar(jev(make_entendimento()))
+    preparar(decisao_falsa(make_entendimento()))
 
     assert client.post("/chat", json=corpo).status_code == 422
 
 
 def test_pergunta_com_1000_caracteres_e_aceita(client: TestClient) -> None:
-    preparar(jev(make_entendimento()))
+    preparar(decisao_falsa(make_entendimento()))
 
     assert client.post("/chat", json={"pergunta": "x" * 1000}).status_code == 200
 
 
-def test_jev_indisponivel_da_503(client: TestClient) -> None:
-    preparar(jev(make_entendimento(), falhar_entendimento=True))
+def test_claude_indisponivel_da_503(client: TestClient) -> None:
+    preparar(decisao_falsa(make_entendimento(), falhar_entendimento=True))
 
     response = client.post("/chat", json={"pergunta": PERGUNTA})
 
@@ -214,24 +214,24 @@ def test_jev_indisponivel_da_503(client: TestClient) -> None:
     assert response.json()["detail"]
 
 
-def test_sem_jev_key_da_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("JEV_KEY", "")
+def test_sem_claude_key_da_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     preparar()
 
     response = client.post("/chat", json={"pergunta": PERGUNTA})
 
     assert response.status_code == 503
-    assert "JEV_KEY" in response.json()["detail"]
+    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
 
 
 def test_registros_mostram_as_perguntas_respondidas_da_mais_recente(client: TestClient) -> None:
     preparar(
-        jev(
+        decisao_falsa(
             make_entendimento(
                 "situacao_sku",
                 0.93,
                 probabilidades_intencao={"situacao_sku": 0.93, "sugestao_compra": 0.07},
-                modelo="jev-1.13.0",
+                modelo="claude-opus-5-5",
             )
         ),
         RedatorGravador("A TBC-BEGE-70140-01 tem 40 unidades."),
@@ -268,7 +268,7 @@ def test_registros_mostram_as_perguntas_respondidas_da_mais_recente(client: Test
 
 
 def test_registros_respeitam_o_limite(client: TestClient) -> None:
-    preparar(jev(make_entendimento("fora_de_escopo", 0.95)))
+    preparar(decisao_falsa(make_entendimento("fora_de_escopo", 0.95)))
     for i in range(3):
         client.post("/chat", json={"pergunta": f"pergunta {i}"})
 
@@ -294,8 +294,8 @@ def test_limite_fora_do_intervalo_da_422(client: TestClient, limite: int) -> Non
     assert client.get("/chat/registros", params={"limite": limite}).status_code == 422
 
 
-def test_jev_indisponivel_nao_grava_registro(client: TestClient) -> None:
-    registros = preparar(jev(make_entendimento(), falhar_entendimento=True))
+def test_claude_indisponivel_nao_grava_registro(client: TestClient) -> None:
+    registros = preparar(decisao_falsa(make_entendimento(), falhar_entendimento=True))
 
     assert client.post("/chat", json={"pergunta": PERGUNTA}).status_code == 503
     assert registros.listar(10) == []
@@ -304,7 +304,7 @@ def test_jev_indisponivel_nao_grava_registro(client: TestClient) -> None:
 def test_chat_de_sugestao_devolve_os_sinais_e_as_citacoes_e_grava_os_dois(client: TestClient) -> None:
     lead_time = "reunioes/q1.md#katrina"
     registros = preparar(
-        jev(
+        decisao_falsa(
             make_entendimento("sugestao_compra", 0.95),
             padrao={"relevante": 0.9, "tem_evidencia": 0.9},
             sinais={lead_time: {"atraso_do_fornecedor": 0.97}},
@@ -344,9 +344,9 @@ def test_chat_de_sugestao_devolve_os_sinais_e_as_citacoes_e_grava_os_dois(client
     assert registros.listar(1)[0].citacoes[0].veredito == "confirmada"
 
 
-def test_chat_de_sugestao_com_o_jev_fora_do_ar_nos_sinais_devolve_e_grava_sinais_nulos(client: TestClient) -> None:
+def test_chat_de_sugestao_com_o_claude_fora_do_ar_nos_sinais_devolve_e_grava_sinais_nulos(client: TestClient) -> None:
     preparar(
-        jev(
+        decisao_falsa(
             make_entendimento("sugestao_compra", 0.95),
             padrao={"relevante": 0.9, "tem_evidencia": 0.9},
             falhar_sinais=True,
@@ -372,7 +372,7 @@ def _pergunta_na_tela(client: TestClient, pergunta: str, sku_code: str | None = 
 @pytest.mark.parametrize("intencao", ["situacao_sku", "sugestao_compra"])
 def test_pergunta_sem_produto_na_tela_do_sku_usa_o_sku_da_tela(client: TestClient, intencao: Intencao) -> None:
     redator = RedatorGravador("Está acabando porque vende 100 por mês.")
-    preparar(jev(make_entendimento(intencao, 0.93)), redator)
+    preparar(decisao_falsa(make_entendimento(intencao, 0.93)), redator)
 
     body = _pergunta_na_tela(client, "Por que está acabando?")
 
@@ -391,7 +391,7 @@ def test_pergunta_sem_produto_na_tela_do_sku_usa_o_sku_da_tela(client: TestClien
 
 
 def test_produto_citado_tem_precedencia_sobre_o_sku_da_tela(client: TestClient) -> None:
-    preparar(jev(make_entendimento("situacao_sku", 0.93)))
+    preparar(decisao_falsa(make_entendimento("situacao_sku", 0.93)))
 
     body = _pergunta_na_tela(client, PERGUNTA)
 
@@ -403,7 +403,7 @@ def test_produto_citado_tem_precedencia_sobre_o_sku_da_tela(client: TestClient) 
 def test_politica_ou_fornecedor_ignora_o_sku_da_tela(client: TestClient) -> None:
     redator = RedatorGravador("O lead time da Katrina é de 45 dias.")
     preparar(
-        jev(make_entendimento("politica_ou_fornecedor", 0.93), padrao={"relevante": 0.9, "tem_evidencia": 0.9}),
+        decisao_falsa(make_entendimento("politica_ou_fornecedor", 0.93), padrao={"relevante": 0.9, "tem_evidencia": 0.9}),
         redator,
     )
 
@@ -416,7 +416,7 @@ def test_politica_ou_fornecedor_ignora_o_sku_da_tela(client: TestClient) -> None
 
 
 def test_sem_sku_na_tela_o_chat_pede_esclarecimento_como_antes(client: TestClient) -> None:
-    preparar(jev(make_entendimento("situacao_sku", 0.93)))
+    preparar(decisao_falsa(make_entendimento("situacao_sku", 0.93)))
 
     body = _pergunta_na_tela(client, "Por que está acabando?", sku_code=None)
 
@@ -425,7 +425,7 @@ def test_sem_sku_na_tela_o_chat_pede_esclarecimento_como_antes(client: TestClien
 
 
 def test_registro_grava_o_sku_da_tela(client: TestClient) -> None:
-    registros = preparar(jev(make_entendimento("situacao_sku", 0.93)))
+    registros = preparar(decisao_falsa(make_entendimento("situacao_sku", 0.93)))
 
     _pergunta_na_tela(client, PERGUNTA)
     _pergunta_na_tela(client, "Por que está acabando?", sku_code=None)
@@ -439,7 +439,7 @@ def test_registro_grava_o_sku_da_tela(client: TestClient) -> None:
 
 
 def test_sku_da_tela_desconhecido_responde_404_sem_registro(client: TestClient) -> None:
-    registros = preparar(jev(make_entendimento("situacao_sku", 0.93)))
+    registros = preparar(decisao_falsa(make_entendimento("situacao_sku", 0.93)))
 
     response = client.post("/chat", json={"pergunta": "Por que está acabando?", "sku_code": "NAO-EXISTE"})
 
@@ -448,7 +448,7 @@ def test_sku_da_tela_desconhecido_responde_404_sem_registro(client: TestClient) 
 
 
 def test_registro_grava_quem_perguntou(client: TestClient, usuario_logado: Usuario) -> None:
-    registros = preparar(jev(make_entendimento("situacao_sku", 0.93)))
+    registros = preparar(decisao_falsa(make_entendimento("situacao_sku", 0.93)))
 
     client.post("/chat", json={"pergunta": PERGUNTA})
 

@@ -54,7 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(entregas_router)
     app.include_router(notificacoes_router)
     app.include_router(reposicao_router)
-    # Handler no app, e não no endpoint, porque a dependência do Jev também lança sem JEV_KEY.
+    # Handler no app, e não no endpoint, porque a dependência do modelo de decisão também lança sem ANTHROPIC_API_KEY.
     app.add_exception_handler(DecisaoIndisponivel, decisao_indisponivel)
     app.add_exception_handler(SKUSemEstoque, sku_sem_estoque)
     app.add_exception_handler(OperationalError, banco_indisponivel)

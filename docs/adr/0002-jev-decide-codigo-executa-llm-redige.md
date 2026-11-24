@@ -1,6 +1,6 @@
 # Jev decide, código executa, LLM redige
 
-Status: accepted (2026-09-25)
+Status: superseded pela [ADR-0008](0008-claude-decide-codigo-executa-llm-redige.md) (2026-11-24). Aceita em 2026-09-25.
 
 O módulo `ai` deixa de ser "LLM com tool use" e passa a ter três papéis separados:
 

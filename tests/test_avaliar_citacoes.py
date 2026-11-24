@@ -38,7 +38,7 @@ DECISAO = InMemoryDecisionModel(
         "c.md#outro-fornecedor": make_relacao("contradiz", 0.65),
         "d.md#outro-fornecedor": make_relacao("contradiz", 0.60),
     },
-    modelo="jev-1.13.0",
+    modelo="claude-opus-5-5",
 )
 
 
@@ -89,7 +89,7 @@ def test_com_menos_de_3_vereditos_errados_o_limiar_atual_fica() -> None:
 def test_relatorio_mostra_os_acertos_a_regra_e_o_limiar() -> None:
     texto = relatorio(resultado(), CASOS)
 
-    assert "Modelo: jev-1.13.0" in texto
+    assert "Modelo: claude-opus-5-5" in texto
     assert "esperado nao_trata (1/4 acertos)" in texto
     assert "Regra de calibração: 0.80 (erro_critico, folga 0.08 abaixo e 0.08 acima" in texto
     assert "LIMIAR_CITACAO = 0.80" in texto

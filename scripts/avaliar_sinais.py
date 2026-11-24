@@ -1,6 +1,6 @@
-"""Avaliação dos sinais do corpus contra o Jev real (M6, ticket 01).
+"""Avaliação dos sinais do corpus contra o Claude real (M6, ticket 01).
 
-Roda `JevDecisionModel.avaliar_sinais` nos casos de `evals/sinais.json`, um
+Roda `ClaudeDecisionModel.avaliar_sinais` nos casos de `evals/sinais.json`, um
 request por caso com o trecho do corpus, grava as respostas cruas e imprime, por
 tipo de sinal, a probabilidade de cada caso e a varredura do limiar. Um trecho
 vira sinal quando a probabilidade passa do limiar. O limiar de cada tipo sai da
@@ -10,7 +10,7 @@ ponto médio entre o maior negativo e o menor positivo; senão, o meio da faixa 
 mais acertos; com menos de 3 positivos ou 3 negativos, o limiar atual fica. O
 relatório traz a regra e a folga de cada tipo.
 
-    uv run python -m scripts.avaliar_sinais          # chama o Jev (precisa de JEV_KEY)
+    uv run python -m scripts.avaliar_sinais          # chama o Claude (precisa de ANTHROPIC_API_KEY)
     uv run python -m scripts.avaliar_sinais --de-arquivo evals/resultados/sinais-AAAA-MM-DD.json
 """
 from __future__ import annotations
@@ -28,7 +28,8 @@ from typing import get_args
 from scripts.calibracao import Calibracao, calibrar, descrever, formatar_limiar
 from src.ai.corpus import ler_corpus
 from src.ai.decisao import DecisionModel
-from src.ai.jev import PERGUNTAS_SINAIS, JevDecisionModel, criar_cliente
+from src.ai.claude import criar_cliente_claude
+from src.ai.claude_decisao import PERGUNTAS_SINAIS, ClaudeDecisionModel, descrever_pergunta
 from src.ai.schemas import AvaliacaoSinais, ProdutoDoSinal, TipoSinal, Trecho
 from src.ai.sinais import LIMIARES_SINAIS
 from src.db.config import get_settings
@@ -123,7 +124,7 @@ def relatorio(resultado: dict, casos: list[dict]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Jev")
+    parser.add_argument("--de-arquivo", type=Path, help="recalcula as métricas de um resultado gravado, sem chamar o Claude")
     args = parser.parse_args()
 
     casos = json.loads(CASOS.read_text(encoding="utf-8"))
@@ -131,18 +132,18 @@ def main() -> None:
         resultado = json.loads(args.de_arquivo.read_text(encoding="utf-8"))
     else:
         settings = get_settings()
-        if not settings.jev_key:
-            raise SystemExit("JEV_KEY vazio no .env")
+        if not settings.anthropic_api_key:
+            raise SystemExit("ANTHROPIC_API_KEY vazio no .env")
         arquivo = RESULTADOS / f"sinais-{date.today().isoformat()}.json"
         if arquivo.exists():
             raise SystemExit(f"{arquivo} já existe; use --de-arquivo para recalcular")
         trechos = {t.id: t for t in ler_corpus(settings.corpus_dir)}
-        with criar_cliente(settings.jev_key, settings.jev_model) as cliente:
-            respostas = rodar(JevDecisionModel(cliente), casos, trechos)
+        with criar_cliente_claude(settings.anthropic_api_key) as cliente:
+            respostas = rodar(ClaudeDecisionModel(cliente, settings.anthropic_decision_model), casos, trechos)
         resultado = {
             "executado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "modelo_pedido": settings.jev_model,
-            "perguntas": {nome: pergunta.model_dump() for nome, pergunta in PERGUNTAS_SINAIS.items()},
+            "modelo_pedido": settings.anthropic_decision_model,
+            "perguntas": {nome: descrever_pergunta(pergunta) for nome, pergunta in PERGUNTAS_SINAIS.items()},
             "respostas": respostas,
         }
         RESULTADOS.mkdir(parents=True, exist_ok=True)

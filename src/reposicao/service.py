@@ -1,6 +1,6 @@
 """Módulo `reposicao`: o painel do repositor e a detecção de queda de venda.
 
-Queda de venda é conta, sem Jev (ADR-0002). Dia aberto é um dia em que a loja inteira (os
+Queda de venda é conta, sem modelo de decisão (ADR-0008). Dia aberto é um dia em que a loja inteira (os
 SKUs ativos) vendeu ao menos uma peça: domingos e feriados saem sem calendário. A janela
 observada são os últimos `dias_observados_queda` dias abertos antes de hoje, e a venda
 diária base é a média dos `DIAS_ABERTOS_DA_BASE` dias abertos anteriores a ela. O SKU tem
@@ -24,7 +24,7 @@ que a verificação corrigiu, é o setor conhecido do SKU.
 
 O mix de gôndola divide a capacidade da gôndola de um produto entre as cores e tamanhos
 pela participação de cada SKU nas vendas do produto nos últimos `dias_mix_gondola` dias
-abertos. Também é conta, sem Jev.
+abertos. Também é conta, sem modelo de decisão.
 
 A hora de repor estima o que sobrou na gôndola de um SKU de produto com capacidade: as peças
 que o mix põe dele menos o que o ERP vendeu desde a última verificação `repus`. Quando a

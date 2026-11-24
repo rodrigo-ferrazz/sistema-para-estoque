@@ -1,10 +1,10 @@
-"""Chat do Copilot (ADR-0002): o Jev entende a pergunta, o código roteia pela faixa
+"""Chat do Copilot (ADR-0008): o Claude entende a pergunta, o código roteia pela faixa
 de confiança e monta os dados, e o redator só escreve a resposta.
 
 Esclarecimento e fora de escopo são respostas feitas em código, sem redator. A
 sugestão de compra leva os sinais do corpus de cada sugestão, a pergunta sobre alertas
 e avisos leva o painel de alertas calculado na hora, e toda resposta
-redigida por LLM tem as citações conferidas pelo Jev e marcadas quando não são
+redigida por LLM tem as citações conferidas pelo Claude e marcadas quando não são
 confirmadas.
 """
 from __future__ import annotations
@@ -51,12 +51,8 @@ from src.purchasing.service import Purchasing
 
 @dataclass(frozen=True)
 class FaixasConfianca:
-    """Partem do spike do M4 (acertos de 0,64 a 1,00, erro em 0,36) e do piso de 0,5
-    da doc do Jev. Mantidas no M8 pela regra de calibração (`scripts/avaliar_entendimento.py`
-    sobre `evals/casos.json` e `evals/intencoes.json`, com os critérios estruturados da
-    intenção): 45 intenções certas e nenhuma errada dão `amostra_insuficiente` para a
-    `media`, e sem intenção errada com confiança de pelo menos a `alta` ela não muda
-    (`.scratch/refinamentos/issues/03-calibracao-do-entendimento.md`)."""
+    """A recalibrar com o Claude (ADR-0008) pela regra do M8 (`scripts/avaliar_entendimento.py`
+    sobre `evals/casos.json` e `evals/intencoes.json`). Os valores vêm do modelo anterior."""
 
     alta: float
     media: float
@@ -275,7 +271,7 @@ class Copilot:
     def _calcular_sinais(
         self, sugestoes: Sequence[SugestaoPedido], produtos: Sequence[ProdutoCatalogo]
     ) -> SinaisDasSugestoes | None:
-        """Nulo com o Jev fora do ar, que não derruba a resposta: ela sai sem sinais."""
+        """Nulo com o Claude fora do ar, que não derruba a resposta: ela sai sem sinais."""
         por_codigo = {sku.sku_code: sku for produto in produtos for sku in produto.skus}
         try:
             return self._sinais.para_sugestoes([(s, por_codigo[s.sku_code]) for s in sugestoes])

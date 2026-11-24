@@ -7,7 +7,7 @@ Cada passo tem a tela, o comando equivalente, o que mostrar e o que esperar. Os 
 ## Pré-requisitos
 
 - Docker com `docker compose`, [`uv`](https://docs.astral.sh/uv/), `curl`, [`jq`](https://jqlang.org/) e um navegador.
-- `.env` copiado do `.env.example`. A `JEV_KEY` (TypeSafe) só é necessária para o chat e os sinais do corpus ("Se sobrar tempo"); a história principal não chama o Jev.
+- `.env` copiado do `.env.example`. A `ANTHROPIC_API_KEY` só é necessária para o chat e os sinais do corpus ("Se sobrar tempo"); a história principal não chama o Claude.
 
 ## Preparação (antes de apresentar, uns 5 minutos)
 
@@ -232,7 +232,7 @@ como carla "$API/chat" -d '{"pergunta": "Por que está acabando?", "sku_code": "
   | jq '{resposta, acao, faixa, intencao: .entendimento.intencao.escolha, identificacao: .identificacao | {skus, origem}, redator}'
 ```
 
-Mostrar: o Jev entende a intenção, o código usa o SKU da tela (origem `contexto`) e o LLM só redige com os números que o código calculou ([ADR-0002](adr/0002-jev-decide-codigo-executa-llm-redige.md)). Esperado: `situacao_sku`, faixa média, `confirmou_e_respondeu`, em uns 5 s; a resposta repete as 18 unidades, o giro de 133 por mês e a cobertura de 4 dias "abaixo do piso de alerta da política", e lista o lead time de cada fornecedor. Ser honesto aqui: a ficha do chat não traz o pedido atrasado da Katrina, então a resposta diz que não sabe dos pedidos em andamento. Quem mostra a entrega é o painel. Para ver os sinais do corpus, pergunte "Quanto devo comprar do SKU JDCP-BRAN-CASAL-01?": a sugestão vem com o sinal de atraso da Katrina e as citações conferidas pelo Jev.
+Mostrar: o Claude entende a intenção, o código usa o SKU da tela (origem `contexto`) e o LLM só redige com os números que o código calculou ([ADR-0008](adr/0008-claude-decide-codigo-executa-llm-redige.md)). Esperado: `situacao_sku`, faixa média, `confirmou_e_respondeu`, em uns 5 s; a resposta repete as 18 unidades, o giro de 133 por mês e a cobertura de 4 dias "abaixo do piso de alerta da política", e lista o lead time de cada fornecedor. Ser honesto aqui: a ficha do chat não traz o pedido atrasado da Katrina, então a resposta diz que não sabe dos pedidos em andamento. Quem mostra a entrega é o painel. Para ver os sinais do corpus, pergunte "Quanto devo comprar do SKU JDCP-BRAN-CASAL-01?": a sugestão vem com o sinal de atraso da Katrina e as citações conferidas pelo Claude.
 
 ### A política de compra (1 min)
 
@@ -251,4 +251,4 @@ Ficam gravados a verificação e os avisos, a decisão, a cobrança, a capacidad
 - 401 nos comandos: a sessão do `curl` não existe ou foi revogada. Rode `entrar <pessoa>` de novo. 403: a pessoa não tem o papel da rota (a Bia não abre o painel do comprador) ou faltou o `X-Requested-With` num `POST`.
 - O tapete marrom não aparece no painel do repositor: ele já tem uma verificação de outra apresentação (volta só depois de um dia aberto inteiro) ou o seed rodou num dia em que a janela não pega o 5 e o 0. Rode o reset e o seed de novo no dia da apresentação.
 - O pedido da Katrina não aparece nas entregas atrasadas: ele tem uma cobrança vigente. Rode o reset.
-- 503 no chat ou nos sinais: falta a `JEV_KEY` ou o Jev está fora do ar. O resto da demo não depende dele.
+- 503 no chat ou nos sinais: falta a `ANTHROPIC_API_KEY` ou a API da Anthropic está fora do ar. O resto da demo não depende dele.

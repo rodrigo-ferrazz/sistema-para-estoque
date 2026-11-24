@@ -1,5 +1,5 @@
-"""Verificação das citações de um texto redigido (ADR-0002): o código extrai cada
-citação `[id]` com a frase que a contém, o Jev diz como o trecho citado se relaciona
+"""Verificação das citações de um texto redigido (ADR-0008): o código extrai cada
+citação `[id]` com a frase que a contém, o Claude diz como o trecho citado se relaciona
 com a frase e o código decide o veredito e marca no texto o que não foi confirmado.
 
 A extração tolera o que o redator já escreveu de fato: colchetes lenticulares
@@ -23,9 +23,8 @@ from src.ai.schemas import (
     VerificacaoCitacao,
 )
 
-# Recalibrado pela regra de calibração do M8 com erro crítico (`scripts/avaliar_citacoes.py`
-# sobre as respostas do jev-1.13.0 gravadas no M6): acima dos trechos de outro fornecedor
-# lidos como `contradiz` (`.scratch/refinamentos/issues/04-regra-de-calibracao.md`).
+# Regra de calibração do M8 com erro crítico, por `scripts/avaliar_citacoes.py` em
+# `evals/citacoes.json`. A recalibrar com o Claude (ADR-0008): o valor vem do modelo anterior.
 LIMIAR_CITACAO = 0.80
 
 _VEREDITOS: dict[str, Veredito] = {

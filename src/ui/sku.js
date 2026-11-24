@@ -416,7 +416,7 @@ async function sinaisPorUltimo(principais) {
     const lista = await api("GET", `/skus/${sku}/sugestao-compra/sinais`);
     bloco("sinais").replaceChildren(el("div", {}, sinaisDoCorpus(lista)));
   } catch (e) {
-    const texto = e.status === 503 ? "Sinais indisponíveis: o Jev está fora do ar. O resto da tela não depende dele." : e.message;
+    const texto = e.status === 503 ? "Sinais indisponíveis: o Claude está fora do ar. O resto da tela não depende dele." : e.message;
     bloco("sinais").replaceChildren(mensagem(e.status === 503 ? "aviso" : "erro", texto));
   }
 }

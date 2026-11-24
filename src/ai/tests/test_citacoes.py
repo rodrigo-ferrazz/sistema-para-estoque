@@ -190,7 +190,7 @@ def avaliacao(trecho_id: str, afirmacao: str, escolha: Relacao, confianca: float
         escolha=escolha,
         confianca=confianca,
         probabilidades={escolha: confianca},
-        modelo="jev-1.13.0",
+        modelo="claude-opus-5-5",
     )
 
 
