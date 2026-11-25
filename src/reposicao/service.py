@@ -40,7 +40,6 @@ avisaram e por fim a hora de repor.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
 from datetime import UTC, date, datetime, time, timedelta
 from typing import get_args
 from uuid import UUID, uuid4
@@ -57,10 +56,18 @@ from src.catalog.service import (
 from src.ficha_sku.service import SKUSemEstoque
 from src.inventory.schemas import Estoque
 from src.inventory.service import Inventory
-from src.notificacoes.schemas import Condicao, TipoEpisodio
+from src.notificacoes.schemas import (
+    Condicao,
+    DetalheGondolaVazia,
+    DetalheQuedaDeVenda,
+    DetalheVerificacaoSobreAviso,
+    TipoEpisodio,
+    nome_do_sku,
+)
 from src.notificacoes.service import Notificacoes
 from src.politica_compra.repositorio import PoliticaCompraRepositorio
 from src.politica_compra.schemas import ParametrosPolitica
+from src.relogio import Relogio, agora_utc
 from src.reposicao.repositorio import (
     AvisosGondolaRepositorio,
     CapacidadesGondolaRepositorio,
@@ -93,8 +100,6 @@ from src.sales.schemas import VendasDoDia
 from src.sales.service import Sales
 from src.usuarios.schemas import Usuario
 
-Relogio = Callable[[], datetime]
-
 DIAS_ABERTOS_DA_BASE = 28
 PRAZO_DE_MEUS_AVISOS = timedelta(days=30)
 TIPOS_DE_EPISODIO: tuple[TipoEpisodio, ...] = ("queda_de_venda",)
@@ -117,9 +122,6 @@ class SetorInativo(Exception):
         super().__init__(f"O setor {setor.nome} foi desativado.")
         self.setor = setor
 
-
-def agora_utc() -> datetime:
-    return datetime.now(UTC)
 
 
 def poisson_ate(k: int, media: float) -> float:
@@ -503,15 +505,13 @@ class Reposicao:
                 tipo="queda_de_venda",
                 sku_code=item.sku.sku_code,
                 papel_destino="reposicao",
-                detalhe={
-                    "produto_nome": item.sku.produto_nome,
-                    "cor": item.sku.cor,
-                    "tamanho": item.sku.tamanho,
-                    "disponivel": item.disponivel,
-                    "venda_diaria_base": item.queda.venda_diaria_base,
-                    "vendido_na_janela": item.queda.vendido_na_janela,
-                    "dias_observados": len(item.queda.ultimos_dias),
-                },
+                detalhe=DetalheQuedaDeVenda(
+                    **nome_do_sku(item.sku),
+                    disponivel=item.disponivel,
+                    venda_diaria_base=item.queda.venda_diaria_base,
+                    vendido_na_janela=item.queda.vendido_na_janela,
+                    dias_observados=len(item.queda.ultimos_dias),
+                ),
             )
             for item in self._na_lista(
                 self._catalog.listar_skus(),
@@ -578,14 +578,12 @@ class Reposicao:
                     sku_code=sku_code,
                     papel_destino="vendas",
                     usuario_destino=usuario_id,
-                    detalhe={
-                        "produto_nome": sku.produto_nome,
-                        "cor": sku.cor,
-                        "tamanho": sku.tamanho,
-                        "resultado": resultado,
-                        "comentario": verificacao.comentario,
-                        "verificado_por": autor.nome,
-                    },
+                    detalhe=DetalheVerificacaoSobreAviso(
+                        **nome_do_sku(sku),
+                        resultado=resultado,
+                        comentario=verificacao.comentario,
+                        verificado_por=autor.nome,
+                    ),
                 ),
                 agora,
             )
@@ -624,16 +622,14 @@ class Reposicao:
                 tipo="gondola_vazia",
                 sku_code=sku_code,
                 papel_destino="reposicao",
-                detalhe={
-                    "produto_nome": sku.produto_nome,
-                    "cor": sku.cor,
-                    "tamanho": sku.tamanho,
-                    "setor": setor.nome,
-                    "avisado_por": autor.nome,
-                    "comentario": aviso.comentario,
-                    "disponivel_no_erp": disponivel,
-                    "pecas": pecas,
-                },
+                detalhe=DetalheGondolaVazia(
+                    **nome_do_sku(sku),
+                    setor=setor.nome,
+                    avisado_por=autor.nome,
+                    comentario=aviso.comentario,
+                    disponivel_no_erp=disponivel,
+                    pecas=pecas,
+                ),
             ),
             aviso.criado_em,
         )
