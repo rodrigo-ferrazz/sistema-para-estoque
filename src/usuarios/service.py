@@ -10,17 +10,19 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 
-from src.usuarios.repositorio import SessoesRepositorio, TentativasLoginRepositorio, UsuariosRepositorio
+from src.relogio import Relogio, agora_utc
+from src.usuarios.repositorio import (
+    SessoesRepositorio,
+    TentativasLoginRepositorio,
+    UsuariosRepositorio,
+)
 from src.usuarios.schemas import PAPEIS, Papel, Sessao, Usuario
-
-Relogio = Callable[[], datetime]
 
 DURACAO_DA_SESSAO = timedelta(days=30)
 MAXIMO_DE_FALHAS = 5
@@ -32,9 +34,6 @@ _hasher = PasswordHasher()
 # Verificado quando o e-mail não existe, para a resposta levar o mesmo tempo.
 _HASH_DE_NINGUEM = _hasher.hash(secrets.token_urlsafe(16))
 
-
-def agora_utc() -> datetime:
-    return datetime.now(UTC)
 
 
 def normalizar_email(email: str) -> str:

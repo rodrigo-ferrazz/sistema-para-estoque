@@ -29,13 +29,11 @@ from src.erp_adapter.in_memory import InMemoryERPAdapter, PedidoCompra
 from src.erp_adapter.schemas import StatusPedidoCompra
 from src.main import app
 from src.notificacoes.dependencies import get_episodios_repositorio
-from src.notificacoes.dependencies import get_relogio as get_relogio_das_notificacoes
 from src.notificacoes.in_memory import InMemoryEpisodiosRepositorio
 from src.painel.dependencies import (
     get_avisos_repositorio,
     get_cobrancas_repositorio,
     get_decisoes_repositorio,
-    get_relogio,
 )
 from src.painel.in_memory import (
     InMemoryAvisosRepositorio,
@@ -45,7 +43,7 @@ from src.painel.in_memory import (
 from src.politica_compra.dependencies import get_politica_compra_repositorio
 from src.politica_compra.in_memory import InMemoryPoliticaCompraRepositorio
 from src.politica_compra.schemas import PARAMETROS_V1
-from src.reposicao.dependencies import get_relogio as get_relogio_da_reposicao
+from src.relogio import get_relogio
 from src.reposicao.dependencies import (
     get_avisos_gondola_repositorio,
     get_capacidades_gondola_repositorio,
@@ -102,8 +100,6 @@ DEPENDENCIAS = (
     get_relogio,
     get_episodios_repositorio,
     get_usuarios_repositorio,
-    get_relogio_das_notificacoes,
-    get_relogio_da_reposicao,
     get_verificacoes_repositorio,
     get_setores_repositorio,
     get_avisos_gondola_repositorio,
@@ -196,8 +192,6 @@ def preparar(*, erp: InMemoryERPAdapter | None = None, **parametros: object) -> 
     app.dependency_overrides[get_relogio] = lambda: cenario.relogio
     app.dependency_overrides[get_episodios_repositorio] = lambda: cenario.episodios
     app.dependency_overrides[get_usuarios_repositorio] = lambda: cenario.usuarios
-    app.dependency_overrides[get_relogio_das_notificacoes] = lambda: cenario.relogio
-    app.dependency_overrides[get_relogio_da_reposicao] = lambda: cenario.relogio
     app.dependency_overrides[get_verificacoes_repositorio] = lambda: cenario.verificacoes
     app.dependency_overrides[get_setores_repositorio] = lambda: cenario.setores
     app.dependency_overrides[get_avisos_gondola_repositorio] = lambda: cenario.avisos_gondola

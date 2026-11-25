@@ -11,14 +11,19 @@ from fastapi import Depends, HTTPException, Request, Response, status
 
 from src.db.config import get_settings
 from src.db.engine import get_engine
+from src.relogio import Relogio, get_relogio
 from src.usuarios.postgres import (
     PostgresSessoesRepositorio,
     PostgresTentativasLoginRepositorio,
     PostgresUsuariosRepositorio,
 )
-from src.usuarios.repositorio import SessoesRepositorio, TentativasLoginRepositorio, UsuariosRepositorio
+from src.usuarios.repositorio import (
+    SessoesRepositorio,
+    TentativasLoginRepositorio,
+    UsuariosRepositorio,
+)
 from src.usuarios.schemas import Papel, Usuario
-from src.usuarios.service import DURACAO_DA_SESSAO, Relogio, Usuarios, agora_utc
+from src.usuarios.service import DURACAO_DA_SESSAO, Usuarios
 
 NOME_DO_COOKIE = "copilot_sessao"
 METODOS_QUE_MUDAM_ESTADO = {"POST", "PUT", "PATCH", "DELETE"}
@@ -35,9 +40,6 @@ def get_sessoes_repositorio() -> SessoesRepositorio:
 def get_tentativas_login_repositorio() -> TentativasLoginRepositorio:
     return PostgresTentativasLoginRepositorio(get_engine())
 
-
-def get_relogio() -> Relogio:
-    return agora_utc
 
 
 def get_usuarios(

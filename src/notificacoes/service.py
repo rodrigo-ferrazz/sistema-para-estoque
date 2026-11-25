@@ -14,22 +14,24 @@ rodam quando alguém abre o Copilot.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Collection
-from datetime import UTC, datetime
+from collections.abc import Collection
+from datetime import datetime
 from uuid import uuid4
 
 from src.notificacoes.repositorio import EpisodiosRepositorio
-from src.notificacoes.schemas import CaixaDeNotificacoes, Condicao, Episodio, Notificacao, TipoEpisodio
+from src.notificacoes.schemas import (
+    CaixaDeNotificacoes,
+    Condicao,
+    Episodio,
+    Notificacao,
+    TipoEpisodio,
+)
+from src.relogio import Relogio, agora_utc
 from src.usuarios.repositorio import UsuariosRepositorio
 from src.usuarios.schemas import Usuario
 
-Relogio = Callable[[], datetime]
-
 TAMANHO_DA_LISTA = 50
 
-
-def agora_utc() -> datetime:
-    return datetime.now(UTC)
 
 
 class Notificacoes:

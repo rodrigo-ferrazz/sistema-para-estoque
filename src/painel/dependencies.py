@@ -11,13 +11,22 @@ from src.inventory.dependencies import get_inventory
 from src.inventory.service import Inventory
 from src.notificacoes.dependencies import get_notificacoes
 from src.notificacoes.service import Notificacoes
-from src.painel.postgres import PostgresAvisosRepositorio, PostgresCobrancasRepositorio, PostgresDecisoesRepositorio
-from src.painel.repositorio import AvisosRepositorio, CobrancasRepositorio, DecisoesRepositorio
-from src.painel.service import Painel, Relogio, agora_utc
+from src.painel.postgres import (
+    PostgresAvisosRepositorio,
+    PostgresCobrancasRepositorio,
+    PostgresDecisoesRepositorio,
+)
+from src.painel.repositorio import (
+    AvisosRepositorio,
+    CobrancasRepositorio,
+    DecisoesRepositorio,
+)
+from src.painel.service import Painel
 from src.politica_compra.dependencies import get_politica_compra_repositorio
 from src.politica_compra.repositorio import PoliticaCompraRepositorio
 from src.purchasing.dependencies import get_purchasing
 from src.purchasing.service import Purchasing
+from src.relogio import Relogio, get_relogio
 from src.reposicao.dependencies import get_reposicao
 from src.reposicao.service import Reposicao
 
@@ -33,10 +42,6 @@ def get_decisoes_repositorio() -> DecisoesRepositorio:
 def get_cobrancas_repositorio() -> CobrancasRepositorio:
     return PostgresCobrancasRepositorio(get_engine())
 
-
-def get_relogio() -> Relogio:
-    """Em testes, sobrescreva para controlar a hora dos avisos, das decisões e das cobranças."""
-    return agora_utc
 
 
 def get_painel(

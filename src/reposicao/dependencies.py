@@ -11,6 +11,7 @@ from src.notificacoes.dependencies import get_notificacoes
 from src.notificacoes.service import Notificacoes
 from src.politica_compra.dependencies import get_politica_compra_repositorio
 from src.politica_compra.repositorio import PoliticaCompraRepositorio
+from src.relogio import Relogio, get_relogio
 from src.reposicao.postgres import (
     PostgresAvisosGondolaRepositorio,
     PostgresCapacidadesGondolaRepositorio,
@@ -23,7 +24,7 @@ from src.reposicao.repositorio import (
     SetoresRepositorio,
     VerificacoesRepositorio,
 )
-from src.reposicao.service import Relogio, Reposicao, agora_utc
+from src.reposicao.service import Reposicao
 from src.sales.dependencies import get_sales
 from src.sales.service import Sales
 
@@ -43,11 +44,6 @@ def get_avisos_gondola_repositorio() -> AvisosGondolaRepositorio:
 def get_capacidades_gondola_repositorio() -> CapacidadesGondolaRepositorio:
     return PostgresCapacidadesGondolaRepositorio(get_engine())
 
-
-def get_relogio() -> Relogio:
-    """Em testes, sobrescreva para controlar o dia de hoje da queda de venda e a hora das
-    verificações."""
-    return agora_utc
 
 
 def get_reposicao(
