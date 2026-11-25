@@ -109,17 +109,13 @@ class Inventory:
     def abaixo_do_piso(self, dias_piso: int = 20) -> list[SKUAbaixoDoPiso]:
         """SKUs ativos com cobertura abaixo do piso, ordenados por urgência.
 
-        Converte `dias_piso` em meses via `dias_piso / 30`. SKUs sem giro
-        (cobertura indefinida) ficam de fora - sem demanda, não há alerta
-        de reposição.
+        A regra é a de `Cobertura.abaixo_do_piso`: SKUs sem giro (cobertura
+        indefinida) ficam de fora - sem demanda, não há alerta de reposição.
         """
-        piso_meses = dias_piso / 30
         alertas: list[SKUAbaixoDoPiso] = []
         for sku in self._erp.listar_skus():
             cobertura = self.cobertura_meses(sku.sku_code)
-            if cobertura.meses is None:
-                continue
-            if cobertura.meses >= piso_meses:
+            if cobertura.meses is None or not cobertura.abaixo_do_piso(dias_piso):
                 continue
             alertas.append(
                 SKUAbaixoDoPiso(

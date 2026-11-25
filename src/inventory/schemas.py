@@ -62,6 +62,12 @@ class Cobertura(BaseModel):
     def dias(self) -> float | None:
         return None if self.meses is None else dias_de_cobertura(self.meses)
 
+    def abaixo_do_piso(self, piso_dias: float) -> bool:
+        """A regra da ruptura (ADR-0006) com o piso de alerta da política: a cobertura em
+        dias abaixo do piso. No piso ainda não está abaixo dele. Sem giro, nunca: sem
+        demanda, não há ruptura."""
+        return self.meses is not None and self.meses < piso_dias / DIAS_POR_MES
+
 
 class SKUAbaixoDoPiso(BaseModel):
     """SKU com cobertura abaixo do piso configurado.

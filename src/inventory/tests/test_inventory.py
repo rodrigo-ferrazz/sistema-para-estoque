@@ -7,6 +7,7 @@ import pytest
 
 from src.erp_adapter.in_memory import InMemoryERPAdapter
 from src.erp_adapter.schemas import StatusPedidoCompra
+from src.inventory.schemas import Cobertura
 from src.inventory.service import Inventory
 from src.sales.service import Sales
 from tests.fakes import (
@@ -119,6 +120,18 @@ def _vendas_giro_60(sku, key_prefix: str = "") -> list:
                    key=f"{key_prefix}{m}")
         for m in range(3, 9)
     ]
+
+
+@pytest.mark.parametrize(
+    ("dias", "abaixo"),
+    [(0.0, True), (19.9, True), (20.0, False), (45.0, False)],
+)
+def test_cobertura_abaixo_do_piso_e_estritamente_abaixo(dias: float, abaixo: bool) -> None:
+    assert Cobertura(meses=dias / 30, sem_giro=False).abaixo_do_piso(20) is abaixo
+
+
+def test_cobertura_sem_giro_nunca_esta_abaixo_do_piso() -> None:
+    assert Cobertura(meses=None, sem_giro=True).abaixo_do_piso(20) is False
 
 
 def test_abaixo_do_piso_retorna_apenas_skus_em_alerta() -> None:

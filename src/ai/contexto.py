@@ -18,10 +18,9 @@ from datetime import datetime, timedelta, timezone
 from src.ai.schemas import ConflitoEntreTrechos, Montagem, SugestaoComSinais, TrechoClassificado
 from src.catalog.schemas import FornecedorParaSKU
 from src.ficha_sku.schemas import Ficha
-from src.inventory.schemas import dias_de_cobertura
+from src.inventory.schemas import Cobertura, dias_de_cobertura
 from src.painel.schemas import Aviso, ItemAlerta, TipoAviso
 from src.politica_compra.schemas import (
-    DIAS_POR_MES,
     CriterioFornecedor,
     LeadTimeBase,
     MotivoAlerta,
@@ -120,7 +119,7 @@ def _ficha(ficha: Ficha, parametros: ParametrosPolitica | None) -> str:
     else:
         linhas.append(
             f"- Cobertura: {_dias_de_meses(ficha.cobertura.meses)}, "
-            f"{_cobertura_na_politica(ficha.cobertura.meses, parametros)}"
+            f"{_cobertura_na_politica(ficha.cobertura, parametros)}"
         )
     if ficha.fornecedores:
         linhas.append("- Fornecedores:")
@@ -130,11 +129,10 @@ def _ficha(ficha: Ficha, parametros: ParametrosPolitica | None) -> str:
     return "\n".join(linhas)
 
 
-def _cobertura_na_politica(meses: float, parametros: ParametrosPolitica) -> str:
-    """Mesma regra do `Inventory.abaixo_do_piso`: no piso ainda não está abaixo dele."""
-    if meses < parametros.piso_alerta_dias / DIAS_POR_MES:
+def _cobertura_na_politica(cobertura: Cobertura, parametros: ParametrosPolitica) -> str:
+    if cobertura.abaixo_do_piso(parametros.piso_alerta_dias):
         return "abaixo do piso de alerta da política (em ruptura)"
-    if meses > parametros.teto_meses:
+    if cobertura.meses is not None and cobertura.meses > parametros.teto_meses:
         return "acima do teto da política"
     return "entre o piso de alerta e o teto da política"
 
