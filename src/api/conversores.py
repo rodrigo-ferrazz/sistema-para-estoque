@@ -1,13 +1,23 @@
-"""Conversores de DTOs de domínio para DTOs HTTP, usados por mais de um router ou endpoint."""
+"""Conversores de DTOs de domínio para DTOs HTTP, usados por mais de um router ou endpoint.
+
+Quando o DTO HTTP é o de domínio com menos campos (sem o `usuario_id`, por exemplo), o
+conversor lê do domínio os campos do DTO HTTP (`from_attributes`): campo novo no domínio
+só aparece na API quando entra no DTO HTTP, e campo do DTO HTTP que sumiu do domínio falha
+aqui. Os conversores escritos à mão são os que mudam a forma."""
 from __future__ import annotations
 
-from src.ai.schemas import SinaisDoSKU, SinalCorpus, SugestaoComSinais, TrechoClassificado, VerificacaoCitacao
+from src.ai.schemas import (
+    SinaisDoSKU,
+    SinalCorpus,
+    SugestaoComSinais,
+    TrechoClassificado,
+    VerificacaoCitacao,
+)
 from src.api.schemas import (
     AnaliseSKUResponse,
     AvisoResponse,
     CobrancaEntregaResponse,
     DecisaoCompraResponse,
-    AvaliacaoTrechoResponse,
     FornecedorResponse,
     GiroResponse,
     SinaisDoSKUResponse,
@@ -26,16 +36,7 @@ from src.reposicao.schemas import VerificacaoGondola
 
 
 def fornecedor_to_response(f: FornecedorParaSKU) -> FornecedorResponse:
-    return FornecedorResponse(
-        fornecedor_id=f.fornecedor_id,
-        fornecedor_nome=f.fornecedor_nome,
-        preco_unitario_reais=f.preco_unitario_reais,
-        moq_unidades=f.moq_unidades,
-        lead_time_dias_contratado=f.lead_time_dias_contratado,
-        lead_time_dias_observado=f.lead_time_dias_observado,
-        prazo_pagamento_padrao=f.prazo_pagamento_padrao,
-        pedido_minimo_reais=f.pedido_minimo_reais,
-    )
+    return FornecedorResponse.model_validate(f, from_attributes=True)
 
 
 def ficha_to_response(ficha: Ficha) -> AnaliseSKUResponse:
@@ -75,12 +76,7 @@ def sugestao_to_response(sugestao: SugestaoPedido) -> SugestaoPedidoResponse:
 
 
 def sinal_to_response(sinal: SinalCorpus) -> SinalCorpusResponse:
-    return SinalCorpusResponse(
-        tipo=sinal.tipo,
-        mensagem=sinal.mensagem,
-        trechos=sinal.trechos,
-        probabilidade=sinal.probabilidade,
-    )
+    return SinalCorpusResponse.model_validate(sinal, from_attributes=True)
 
 
 def sugestao_com_sinais_to_response(com_sinais: SugestaoComSinais) -> SugestaoComSinaisResponse:
@@ -98,81 +94,24 @@ def _sinais_to_response(sinais: list[SinalCorpus] | None) -> list[SinalCorpusRes
 
 
 def verificacao_to_response(verificacao: VerificacaoCitacao) -> VerificacaoCitacaoResponse:
-    return VerificacaoCitacaoResponse(
-        trecho_id=verificacao.trecho_id,
-        afirmacao=verificacao.afirmacao,
-        veredito=verificacao.veredito,
-        confianca=verificacao.confianca,
-    )
+    return VerificacaoCitacaoResponse.model_validate(verificacao, from_attributes=True)
 
 
 def trecho_to_response(trecho: TrechoClassificado) -> TrechoClassificadoResponse:
-    return TrechoClassificadoResponse(
-        id=trecho.id,
-        documento=trecho.documento,
-        titulo=trecho.titulo,
-        tipo=trecho.tipo,
-        data=trecho.data,
-        tags=trecho.tags,
-        texto=trecho.texto,
-        similaridade=trecho.similaridade,
-        classificacao=trecho.classificacao,
-        motivo_descarte=trecho.motivo_descarte,
-        avaliacao=AvaliacaoTrechoResponse(
-            relevante=trecho.avaliacao.relevante,
-            tem_evidencia=trecho.avaliacao.tem_evidencia,
-            contradiz_premissa=trecho.avaliacao.contradiz_premissa,
-            tenta_instruir=trecho.avaliacao.tenta_instruir,
-        ),
-    )
+    return TrechoClassificadoResponse.model_validate(trecho, from_attributes=True)
 
 
 def aviso_to_response(aviso: Aviso) -> AvisoResponse:
-    return AvisoResponse(
-        id=aviso.id,
-        sku_code=aviso.sku_code,
-        tipo=aviso.tipo,
-        comentario=aviso.comentario,
-        avisado_por=aviso.avisado_por,
-        criado_em=aviso.criado_em,
-        quantidade=aviso.quantidade,
-    )
+    return AvisoResponse.model_validate(aviso, from_attributes=True)
 
 
 def decisao_to_response(decisao: DecisaoCompra) -> DecisaoCompraResponse:
-    return DecisaoCompraResponse(
-        id=decisao.id,
-        sku_code=decisao.sku_code,
-        tipo=decisao.tipo,
-        quantidade=decisao.quantidade,
-        motivo=decisao.motivo,
-        comentario=decisao.comentario,
-        decidido_por=decisao.decidido_por,
-        quantidade_sugerida=decisao.quantidade_sugerida,
-        politica_versao=decisao.politica_versao,
-        criado_em=decisao.criado_em,
-    )
+    return DecisaoCompraResponse.model_validate(decisao, from_attributes=True)
 
 
 def cobranca_to_response(cobranca: CobrancaEntrega) -> CobrancaEntregaResponse:
-    return CobrancaEntregaResponse(
-        id=cobranca.id,
-        pedido_id=cobranca.pedido_id,
-        fornecedor_id=cobranca.fornecedor_id,
-        nova_previsao=cobranca.nova_previsao,
-        comentario=cobranca.comentario,
-        cobrado_por=cobranca.cobrado_por,
-        criado_em=cobranca.criado_em,
-    )
+    return CobrancaEntregaResponse.model_validate(cobranca, from_attributes=True)
 
 
 def verificacao_gondola_to_response(v: VerificacaoGondola) -> VerificacaoGondolaResponse:
-    return VerificacaoGondolaResponse(
-        id=v.id,
-        sku_code=v.sku_code,
-        resultado=v.resultado,
-        comentario=v.comentario,
-        disponivel_no_erp=v.disponivel_no_erp,
-        verificado_por=v.verificado_por,
-        criado_em=v.criado_em,
-    )
+    return VerificacaoGondolaResponse.model_validate(v, from_attributes=True)
